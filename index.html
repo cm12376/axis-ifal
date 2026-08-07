@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt-PT" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFAL Digital - Plataforma Axis de Gestão & Orientação</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons & Chart.js -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Estilos Customizados -->
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-50 flex flex-col overflow-hidden">
+
+    <!-- Estrutura Principal de Layout -->
+    <div class="flex h-full w-full overflow-hidden">
+        
+        <!-- Sidebar Principal (Menu Esquerdo) -->
+        <aside id="sidebar" class="hidden md:flex flex-col w-64 bg-slate-900 dark:bg-slate-950 text-white shrink-0 border-r border-slate-800 z-30 transition-all duration-300">
+            <!-- Cabeçalho Institucional -->
+            <div class="p-6 flex items-center gap-3 border-b border-slate-800">
+                <div class="bg-emerald-600 p-2.5 rounded-xl text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
+                    <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-sm leading-tight tracking-wider text-emerald-400">AXIS IFAL</h1>
+                    <span class="text-[11px] text-slate-400">Gestão & Orientação</span>
+                </div>
+            </div>
+
+            <!-- Perfil Rápido -->
+            <div class="p-4 mx-4 my-3 bg-slate-800/40 rounded-xl border border-slate-800/60">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white shadow-sm" id="userAvatar">
+                        AN
+                    </div>
+                    <div class="truncate">
+                        <span class="text-[10px] text-slate-400 block font-medium">Estudante Novato</span>
+                        <span class="text-xs font-semibold text-slate-200 truncate block w-32" id="userNameLabel">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegação de Tabs -->
+            <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+                <button onclick="changeTab('dashboard')" id="btn-dashboard" class="nav-btn active flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Painel Principal
+                </button>
+                <button onclick="changeTab('calendar')" id="btn-calendar" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    Agenda de Eventos
+                </button>
+                <button onclick="changeTab('tasks')" id="btn-tasks" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="trello" class="w-4 h-4"></i>
+                    Quadro Kanban
+                </button>
+                <button onclick="changeTab('guide')" id="btn-guide" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="compass" class="w-4 h-4"></i>
+                    Manual do Ingressante
+                </button>
+                <button onclick="changeTab('materials')" id="btn-materials" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="cloud-lightning" class="w-4 h-4"></i>
+                    Pasta de Estudos
+                </button>
+                <button onclick="changeTab('performance')" id="btn-performance" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="line-chart" class="w-4 h-4"></i>
+                    Simulador & Notas
+                </button>
+                <button onclick="changeTab('assistant')" id="btn-assistant" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <span class="flex h-2 w-2 relative -mr-1">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
+                    Tutor Virtual Gemini
+                </button>
+            </nav>
+
+            <!-- Painel Pomodoro Integrado -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/40">
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                            <i data-lucide="alarm-clock" class="w-3.5 h-3.5 text-rose-500"></i>
+                            Foco Ativo
+                        </span>
+                        <span id="pomo-label" class="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold uppercase">Trabalho</span>
+                    </div>
+                    
+                    <div class="text-center font-mono text-2xl font-black text-white tracking-widest my-1" id="pomo-timer">25:00</div>
+                    
+                    <div class="flex gap-1.5 mt-3">
+                        <button onclick="togglePomo()" id="pomo-play-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg py-1.5 text-[10px] font-bold transition flex items-center justify-center gap-1">
+                            <i data-lucide="play" class="w-3 h-3"></i> Iniciar
+                        </button>
+                        <button onclick="resetPomo()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg p-1.5 text-xs transition" title="Repor">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Container do Conteúdo Direita -->
+        <div class="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+            
+            <!-- Barra Superior (Header) -->
+            <header class="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 h-16 shrink-0 flex items-center justify-between px-4 md:px-6 z-10 transition-colors duration-200">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleMobileSidebar()" class="md:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition">
+                        <i data-lucide="menu" class="w-5.5 h-5.5"></i>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border border-emerald-100 dark:border-emerald-900/30">IFAL Campus Maceió</span>
+                        <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+                        <span class="text-slate-500 dark:text-slate-400 text-xs font-semibold hidden sm:inline" id="topbar-date">Carregando...</span>
+                    </div>
+                </div>
+
+                <!-- Status do Banco, Dark Mode e Alertas -->
+                <div class="flex items-center gap-2.5">
+                    
+                    <!-- Indicador do Banco Neon -->
+                    <div id="supabase-status-badge" onclick="openConfigModal()" class="cursor-pointer">
+                        <span id="supabase-status-text">Verificando...</span>
+                    </div>
+
+                    <!-- Alternador de Tema Escuro -->
+                    <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition" title="Alternar Tema">
+                        <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                        <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+                    </button>
+
+                    <!-- Notificações -->
+                    <div class="relative">
+                        <button onclick="toggleNotifDropdown()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition relative">
+                            <i data-lucide="bell" class="w-5 h-5"></i>
+                            <span id="notif-badge" class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full hidden"></span>
+                        </button>
+                        
+                        <!-- Dropdown de Notificações -->
+                        <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden">
+                            <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+                                <span class="font-bold text-xs">Avisos e Lembretes</span>
+                                <button onclick="clearAllNotifications()" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline font-bold">Limpar tudo</button>
+                            </div>
+                            <div id="notif-container" class="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                                <!-- Preenchido via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configurações Perfil & Banco de Dados -->
+                    <button onclick="openConfigModal()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition" title="Configurações e Banco de Dados">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Overlay de Sidebar Móvel -->
+            <div id="mobile-overlay" class="hidden absolute inset-0 bg-slate-900/60 z-20 md:hidden" onclick="toggleMobileSidebar()"></div>
+
+            <!-- Área de Conteúdo Principal -->
+            <main class="flex-1 overflow-y-auto p-4 md:p-6" id="view-port">
+                
+                <!-- TAB 1: DASHBOARD PRINCIPAL -->
+                <section id="tab-dashboard" class="space-y-6">
+                    <!-- Banner de Boas-vindas -->
+                    <div class="relative bg-gradient-to-r from-emerald-800 to-teal-950 rounded-2xl p-6 md:p-8 text-white shadow-xl overflow-hidden border border-emerald-700/20">
+                        <div class="absolute right-0 bottom-0 translate-y-1/4 translate-x-1/8 opacity-10 pointer-events-none">
+                            <i data-lucide="sparkles" class="w-96 h-96"></i>
+                        </div>
+                        <div class="relative z-10 max-w-2xl space-y-3">
+                            <span class="inline-block bg-white/15 backdrop-blur-md text-emerald-300 text-[10px] font-bold px-3 py-1 rounded-full border border-white/10 uppercase tracking-widest">Estudantes Novatos IFAL</span>
+                            <h2 class="text-2xl md:text-3xl font-black leading-tight">Olá, <span id="welcome-name" class="text-emerald-300">Novato</span>! Vamos gerir o teu sucesso?</h2>
+                            <p class="text-slate-200 text-xs md:text-sm leading-relaxed">Central integrada da Plataforma Axis. Gerencie tarefas, prazos acadêmicos, calcule médias de aprovação e tire dúvidas com o Tutor Virtual.</p>
+                            
+                            <div class="flex flex-wrap gap-2.5 pt-2">
+                                <button onclick="changeTab('assistant')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/25">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i> Falar com Tutor Gemini
+                                </button>
+                                <button onclick="changeTab('guide')" class="bg-white/10 hover:bg-white/15 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2 border border-white/10">
+                                    <i data-lucide="book-open" class="w-4 h-4"></i> Manual do Novato
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Indicadores Rápidos -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex items-center gap-4 transition-all hover:scale-[1.01]">
+                            <div class="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                                <i data-lucide="list-todo" class="w-5.5 h-5.5"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Tarefas Pendentes</p>
+                                <p class="text-xl font-bold mt-0.5" id="dash-pending-count">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex items-center gap-4 transition-all hover:scale-[1.01]">
+                            <div class="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl">
+                                <i data-lucide="clock" class="w-5.5 h-5.5"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Próximos Exames</p>
+                                <p class="text-xl font-bold mt-0.5" id="dash-exams-count">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex items-center gap-4 transition-all hover:scale-[1.01]">
+                            <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                                <i data-lucide="award" class="w-5.5 h-5.5"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Média Global</p>
+                                <p class="text-xl font-bold mt-0.5" id="dash-average">0.0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex items-center gap-4 transition-all hover:scale-[1.01]">
+                            <div class="p-3 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl">
+                                <i data-lucide="users" class="w-5.5 h-5.5"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Frequência Letiva</p>
+                                <p class="text-xl font-bold mt-0.5">92%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divisão Principal: Entregas Urgentes & Compromissos -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="check-square" class="w-4.5 h-4.5 text-emerald-500"></i>
+                                    <h3 class="font-bold text-sm">Compromissos Pendentes Urgentes</h3>
+                                </div>
+                                <button onclick="changeTab('tasks')" class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold">Gerir Quadro</button>
+                            </div>
+                            <div id="dash-tasks-container" class="space-y-3 flex-1 overflow-y-auto">
+                                <!-- JS -->
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex flex-col">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="calendar" class="w-4.5 h-4.5 text-emerald-500"></i>
+                                    <h3 class="font-bold text-sm">Próximos Dias Críticos</h3>
+                                </div>
+                                <button onclick="changeTab('calendar')" class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-semibold">Calendário</button>
+                            </div>
+                            <div id="dash-events-container" class="space-y-4 flex-1 overflow-y-auto">
+                                <!-- JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: CALENDÁRIO INTERATIVO -->
+                <section id="tab-calendar" class="space-y-6 hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold">Calendário Acadêmico Inteligente</h2>
+                            <p class="text-xs text-slate-500">Acompanha exames, reuniões do PIBITI e prazos importantes do IFAL.</p>
+                        </div>
+                        <button onclick="openAddEventModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Agendar Evento
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+                                <h3 class="font-bold text-sm" id="cal-month-label">Maio 2026</h3>
+                                <div class="flex gap-2">
+                                    <button onclick="changeMonth(-1)" class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="changeMonth(1)" class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-7 gap-1.5 text-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">
+                                <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1.5" id="cal-days-grid">
+                                <!-- JS -->
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex flex-col">
+                            <h3 class="font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">Lista Geral de Prazos</h3>
+                            <div id="cal-list-container" class="space-y-3.5 flex-1 overflow-y-auto">
+                                <!-- JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: QUADRO KANBAN -->
+                <section id="tab-tasks" class="space-y-6 hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold">Gestão Ágil de Estudos</h2>
+                            <p class="text-xs text-slate-500">Organiza tuas tarefas por estado e sincroniza com o banco de dados.</p>
+                        </div>
+                        <button onclick="openAddTaskModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Nova Tarefa
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Por Fazer -->
+                        <div class="bg-slate-100 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/60 flex flex-col h-[520px]">
+                            <div class="flex justify-between items-center px-1 pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+                                <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-rose-500"></span> Por Fazer
+                                </span>
+                                <span id="count-todo" class="text-[10px] bg-slate-200 dark:bg-slate-800 font-bold px-2 py-0.5 rounded-full">0</span>
+                            </div>
+                            <div id="kanban-todo" class="space-y-3 overflow-y-auto flex-1 p-1">
+                                <!-- JS -->
+                            </div>
+                        </div>
+
+                        <!-- Em Progresso -->
+                        <div class="bg-slate-100 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/60 flex flex-col h-[520px]">
+                            <div class="flex justify-between items-center px-1 pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+                                <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> Em Progresso
+                                </span>
+                                <span id="count-progress" class="text-[10px] bg-slate-200 dark:bg-slate-800 font-bold px-2 py-0.5 rounded-full">0</span>
+                            </div>
+                            <div id="kanban-progress" class="space-y-3 overflow-y-auto flex-1 p-1">
+                                <!-- JS -->
+                            </div>
+                        </div>
+
+                        <!-- Concluído -->
+                        <div class="bg-slate-100 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/60 flex flex-col h-[520px]">
+                            <div class="flex justify-between items-center px-1 pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+                                <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Concluído
+                                </span>
+                                <span id="count-done" class="text-[10px] bg-slate-200 dark:bg-slate-800 font-bold px-2 py-0.5 rounded-full">0</span>
+                            </div>
+                            <div id="kanban-done" class="space-y-3 overflow-y-auto flex-1 p-1">
+                                <!-- JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: MANUAL DO INGRESSANTE -->
+                <section id="tab-guide" class="space-y-6 hidden">
+                    <div>
+                        <h2 class="text-xl font-bold">Manual de Sobrevivência do Novato</h2>
+                        <p class="text-xs text-slate-500">Orientações didáticas, calendário de atendimento social e diretrizes do SIGAA IFAL.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <div class="lg:col-span-1 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 space-y-1 h-fit">
+                            <button onclick="setGuideActive('sigaa')" id="g-sigaa-btn" class="g-btn active flex items-center gap-2 w-full px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 [&.active]:bg-emerald-50 [&.active]:text-emerald-700 dark:[&.active]:bg-emerald-950/40 dark:[&.active]:text-emerald-400">
+                                <i data-lucide="monitor" class="w-4 h-4"></i> Portal SIGAA
+                            </button>
+                            <button onclick="setGuideActive('regras')" id="g-regras-btn" class="g-btn flex items-center gap-2 w-full px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 [&.active]:bg-emerald-50 [&.active]:text-emerald-700 dark:[&.active]:bg-emerald-950/40 dark:[&.active]:text-emerald-400">
+                                <i data-lucide="scale" class="w-4 h-4"></i> Presença & 2ª Chamada
+                            </button>
+                            <button onclick="setGuideActive('auxilio')" id="g-auxilio-btn" class="g-btn flex items-center gap-2 w-full px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 [&.active]:bg-emerald-50 [&.active]:text-emerald-700 dark:[&.active]:bg-emerald-950/40 dark:[&.active]:text-emerald-400">
+                                <i data-lucide="heart-handshake" class="w-4 h-4"></i> Assistência & PIBITI
+                            </button>
+                        </div>
+
+                        <div class="lg:col-span-3 bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs min-h-[300px]">
+                            <!-- Sigaa -->
+                            <div id="guide-sigaa" class="guide-panel space-y-4">
+                                <h3 class="text-base font-bold flex items-center gap-2">
+                                    <i data-lucide="monitor" class="text-emerald-500"></i> Dominar o Portal SIGAA IFAL
+                                </h3>
+                                <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                                    O Portal do Discente do SIGAA é onde tudo acontece. Nele tens o teu Histórico Académico, horário das aulas, contactos com os professores e submissão de atividades em formato virtual.
+                                </p>
+                                <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                                    <h4 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">Primeiro Registo Institucional:</h4>
+                                    <ol class="list-decimal list-inside text-xs text-slate-500 dark:text-slate-400 space-y-2">
+                                        <li>Acede a <strong class="text-emerald-600 dark:text-emerald-400">sigaa.ifal.edu.br</strong> e clica em **Cadastro de Discente**.</li>
+                                        <li>Preenche com a tua Matrícula de Ingressante, CPF, Nome Completo e Ano de Ingresso.</li>
+                                        <li>Cria as tuas credenciais para emitir comprovantes e consultar médias.</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <!-- Regras -->
+                            <div id="guide-regras" class="guide-panel hidden space-y-4">
+                                <h3 class="text-base font-bold flex items-center gap-2">
+                                    <i data-lucide="scale" class="text-emerald-500"></i> Regulamentos e Regras de Frequência
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="p-4 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                                        <h4 class="text-xs font-extrabold text-rose-500 flex items-center gap-1.5">
+                                            <i data-lucide="alert-octagon" class="w-4 h-4"></i> Mínimo de 75% de Presença
+                                        </h4>
+                                        <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+                                            É obrigatório cumprir pelo menos 75% de assiduidade em cada disciplina para evitar reprovação direta por falta (RFI).
+                                        </p>
+                                    </div>
+                                    <div class="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                                        <h4 class="text-xs font-extrabold text-emerald-500 flex items-center gap-1.5">
+                                            <i data-lucide="calendar" class="w-4 h-4"></i> Solicitante de 2ª Chamada
+                                        </h4>
+                                        <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+                                            Perdeu uma avaliação por motivo justificado? Tens <strong>3 dias úteis</strong> para dar entrada no processo na CRA.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Auxilios -->
+                            <div id="guide-auxilio" class="guide-panel hidden space-y-4">
+                                <h3 class="text-base font-bold flex items-center gap-2">
+                                    <i data-lucide="heart-handshake" class="text-emerald-500"></i> Apoio Estudantil & Bolsas PIBITI
+                                </h3>
+                                <div class="space-y-3 text-xs">
+                                    <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <span class="bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded font-extrabold text-[10px]">Auxílio Alimentação</span>
+                                        <p class="text-slate-500 dark:text-slate-400 mt-1">Garante refeição no campus ou auxílio financeiro para transporte e nutrição.</p>
+                                    </div>
+                                    <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <span class="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-extrabold text-[10px]">Bolsas de Inovação PIBITI</span>
+                                        <p class="text-slate-500 dark:text-slate-400 mt-1">Inscreva-se em projetos tecnológicos orientados por professores do IFAL com direito a bolsa mensal.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: PASTA DE ESTUDOS -->
+                <section id="tab-materials" class="space-y-6 hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold">Pasta Digital de Documentos</h2>
+                            <p class="text-xs text-slate-500">Armazena links de drives, apostilas e slides com sincronização em nuvem.</p>
+                        </div>
+                        <button onclick="openAddMaterialModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Guardar Material
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <div class="lg:col-span-1 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 space-y-1 h-fit">
+                            <h4 class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-2.5 mb-2">Filtros</h4>
+                            <button onclick="setMaterialFilter('todos', this)" class="m-filter active flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-900 [&.active]:bg-emerald-50 [&.active]:text-emerald-700 dark:[&.active]:bg-emerald-950/40 dark:[&.active]:text-emerald-400">
+                                Todos os Ficheiros
+                                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full" id="fcount-all">0</span>
+                            </button>
+                            <button onclick="setMaterialFilter('algoritmos', this)" class="m-filter flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-900 [&.active]:bg-emerald-50 [&.active]:text-emerald-700 dark:[&.active]:bg-emerald-950/40 dark:[&.active]:text-emerald-400">
+                                Introdução a Algoritmos
+                                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full" id="fcount-alg">0</span>
+                            </button>
+                            <button onclick="setMaterialFilter('web', this)" class="m-filter flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-900 [&.active]:bg-emerald-50 [&.active]:text-emerald-700 dark:[&.active]:bg-emerald-950/40 dark:[&.active]:text-emerald-400">
+                                Desenvolvimento Web I
+                                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full" id="fcount-web">0</span>
+                            </button>
+                        </div>
+
+                        <div class="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4" id="materials-grid">
+                            <!-- JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 6: SIMULADOR & NOTAS -->
+                <section id="tab-performance" class="space-y-6 hidden">
+                    <div>
+                        <h2 class="text-xl font-bold">Monitor de Aproveitamento Escolar</h2>
+                        <p class="text-xs text-slate-500">Visualiza a evolução de notas bimestrais e calcula a média mínima de 6.0 do IFAL.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex flex-col justify-between">
+                            <h3 class="font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">Evolução de Médias Bimestrais</h3>
+                            <div class="h-64 relative">
+                                <canvas id="chart-performance"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">Calculadora de Aprovação</h3>
+                                <p class="text-[11px] text-slate-400">Verifique se suas notas atingem a média mínima de <strong class="text-emerald-600 dark:text-emerald-400">6.0</strong>.</p>
+                                
+                                <div class="space-y-3.5 mt-4">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Média do Bimestre 1</label>
+                                        <input type="number" id="sim-b1" value="5.8" min="0" max="10" step="0.1" oninput="simPerformance()" class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nota Esperada no Bimestre 2</label>
+                                        <input type="number" id="sim-b2" value="6.5" min="0" max="10" step="0.1" oninput="simPerformance()" class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-slate-500 font-semibold">Média Prevista</span>
+                                    <span class="text-base font-black text-emerald-600 dark:text-emerald-400" id="sim-result">6.15</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1.5" id="sim-status-label">Aprovação garantida sem necessidade de prova final.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 7: TUTOR VIRTUAL IA -->
+                <section id="tab-assistant" class="space-y-6 hidden flex flex-col h-full min-h-[500px]">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Tutor Inteligente Activo</span>
+                                <h2 class="text-xl font-bold">Tutor Acadêmico do IFAL</h2>
+                            </div>
+                            <p class="text-xs text-slate-500">Tire dúvidas sobre regras do IFAL, SIGAA, Pomodoro e roteiros de estudo.</p>
+                        </div>
+                        <button onclick="clearChat()" class="text-xs text-rose-500 hover:underline flex items-center gap-1">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Chat
+                        </button>
+                    </div>
+
+                    <div class="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col overflow-hidden min-h-[350px]">
+                        <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4">
+                            <div class="flex gap-3 max-w-xl">
+                                <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                    IA
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 text-xs text-slate-700 dark:text-slate-300">
+                                    <p class="font-extrabold text-slate-800 dark:text-white text-[10px] mb-1">Tutor Virtual do IFAL</p>
+                                    Olá, sou o teu tutor inteligente. Posso tirar dúvidas sobre o SIGAA, segunda chamada, limites de falta, bolsas PIBITI e técnicas de estudo. Como posso te ajudar hoje?
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="ai-typing" class="hidden px-4 py-2 flex items-center gap-2 text-[11px] text-slate-400">
+                            <span class="flex h-1.5 w-1.5 relative">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                            </span>
+                            O Tutor está a preparar a orientação...
+                        </div>
+
+                        <div class="border-t border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900/40 flex gap-2">
+                            <input type="text" id="chat-input" onkeydown="if(event.key === 'Enter') sendChatMessage()" placeholder="Digita a tua dúvida (ex: como funciona a 2ª chamada)..." class="flex-1 px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-950 focus:outline-none focus:border-emerald-500 transition">
+                            <button onclick="sendChatMessage()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl transition flex items-center justify-center">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAIS DE REGISTRO -->
+
+    <!-- MODAL TAREFA -->
+    <div id="modal-task" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 mb-4 uppercase tracking-wider">
+                <i data-lucide="plus-circle" class="text-emerald-600"></i> Registrar Nova Atividade
+            </h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Título da Atividade</label>
+                    <input type="text" id="m-task-title" placeholder="Ex: Entrega do Protótipo de Web I" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Disciplina</label>
+                    <select id="m-task-category" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                        <option value="algoritmos">Introdução a Algoritmos</option>
+                        <option value="web">Desenvolvimento Web I</option>
+                        <option value="bd">Banco de Dados (PostgreSQL)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Prazo Final</label>
+                        <input type="date" id="m-task-date" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Urgência</label>
+                        <select id="m-task-priority" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                            <option value="alta">Alta</option>
+                            <option value="media" selected>Média</option>
+                            <option value="baixa">Baixa</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-2 justify-end mt-6">
+                <button onclick="closeAddTaskModal()" class="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900">Cancelar</button>
+                <button onclick="submitNewTask()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500">Salvar Atividade</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EVENTO -->
+    <div id="modal-event" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 mb-4 uppercase tracking-wider">
+                <i data-lucide="calendar-plus" class="text-emerald-600"></i> Agendar Novo Compromisso
+            </h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nome do Evento</label>
+                    <input type="text" id="m-evt-title" placeholder="Ex: Avaliação Bimestral de Algoritmos" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Data</label>
+                    <input type="date" id="m-evt-date" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tipo</label>
+                    <select id="m-evt-type" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                        <option value="prova">Prova / Teste</option>
+                        <option value="trabalho">Entrega Trabalho</option>
+                        <option value="reuniao">Reunião PIBITI / Grupo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2 justify-end mt-6">
+                <button onclick="closeAddEventModal()" class="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900">Cancelar</button>
+                <button onclick="submitNewEvent()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500">Agendar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MATERIAL -->
+    <div id="modal-material" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 mb-4 uppercase tracking-wider">
+                <i data-lucide="file-plus" class="text-emerald-600"></i> Guardar Material de Estudos
+            </h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Título do Material</label>
+                    <input type="text" id="m-mat-title" placeholder="Ex: Diapositivos CSS Grid Avançado" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">URL de Acesso</label>
+                    <input type="text" id="m-mat-link" placeholder="Ex: https://drive.google.com/..." class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Disciplina</label>
+                    <select id="m-mat-category" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                        <option value="algoritmos">Introdução a Algoritmos</option>
+                        <option value="web">Desenvolvimento Web I</option>
+                        <option value="bd">Banco de Dados (PostgreSQL)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2 justify-end mt-6">
+                <button onclick="closeAddMaterialModal()" class="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900">Cancelar</button>
+                <button onclick="submitNewMaterial()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURAÇÃO DE PERFIL -->
+    <div id="modal-config" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 mb-2 uppercase tracking-wider">
+                <i data-lucide="database" class="text-emerald-600"></i> Configurações do Perfil
+            </h3>
+            <p class="text-[10px] text-slate-400 mb-4">O teu perfil é guardado no banco de dados Neon PostgreSQL, com sincronização automática em todos os dispositivos.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nome do Discente</label>
+                    <input type="text" id="config-username" placeholder="Seu Nome Completo" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+            </div>
+
+            <div class="flex gap-2 justify-end mt-6">
+                <button onclick="closeConfigModal()" class="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900">Cancelar</button>
+                <button onclick="submitConfig()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500">Salvar Perfil</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Principal JS com carregamento modular -->
+    <script type="module" src="./js/app.js"></script>
+</body>
+</html>

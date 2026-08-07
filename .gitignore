@@ -1,0 +1,19 @@
+# Dependências
+node_modules
+
+# Build
+dist
+
+# Vercel
+.vercel
+
+# Ambiente e segredos
+.env
+.env.*
+*.local
+
+# Backups e temporários
+*.bak
+*.bak.html
+*.docx
+Thumbs.dbindex (1).html
