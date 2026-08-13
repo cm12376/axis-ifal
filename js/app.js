@@ -764,7 +764,7 @@ async function sendChatMessage() {
     typing.classList.remove('hidden');
 
     try {
-        const response = await askGeminiTutor(userMsg);
+        const response = await askGeminiTutor(userMsg, import.meta.env.VITE_GROQ_API_KEY || '');
         appendChatMessage(response, 'ai');
     } catch (err) {
         appendChatMessage("Desculpe, ocorreu um erro de conexão com o Tutor Virtual.", 'ai');
