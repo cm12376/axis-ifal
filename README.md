@@ -12,24 +12,29 @@ A **Plataforma Axis** é um sistema inteligente de apoio à orientação acadêm
 - 📊 **Monitor & Simulador de Notas**: Cálculo da média mínima (6.0) do IFAL e gráficos visuais de evolução de notas bimestrais (Chart.js).
 - ⏱️ **Timer Pomodoro Integrado**: Ciclos de 25 min de estudo com 5 min de descanso e sintetizador de som Web Audio API.
 - 🤖 **Tutor Virtual Gemini**: Assistente de IA que responde a dúvidas didáticas sobre o SIGAA, segunda chamada, limites de falta (75%) e auxílios institucionais.
-- ⚡ **Banco de Dados Supabase**: Persistência em nuvem com fallback automático para modo LocalStorage.
+- 🔐 **Login e Senha**: Cada estudante cria a própria conta; tarefas, eventos, materiais, notas e notificações ficam isolados por usuário.
+- ⚡ **Banco de Dados Neon PostgreSQL**: Persistência em nuvem via funções serverless da Vercel, com fallback automático para modo LocalStorage quando offline.
 
 ---
 
-## 🗄️ Configuração do Banco de Dados no Supabase
+## 🗄️ Configuração do Banco de Dados Neon
 
-### 1. Criar o Projeto no Supabase
-1. Acesse [supabase.com](https://supabase.com) e crie um projeto gratuito.
-2. Acesse o **SQL Editor** no painel do Supabase.
-3. Copie todo o conteúdo do arquivo [`supabase/schema.sql`](./supabase/schema.sql) e execute a consulta.
+### 1. Criar o Projeto no Neon
+1. Acesse [neon.tech](https://neon.tech) e crie um projeto gratuito de PostgreSQL.
+2. Copie a *connection string* do banco.
 
-### 2. Conectar a Aplicação ao Supabase
+### 2. Aplicar o Esquema
+1. Defina a variável de ambiente `NEON_DATABASE_URL` (ou `DATABASE_URL` na Vercel) com a connection string.
+2. Execute o script de migração:
+   ```bash
+   node scripts/applySchema.mjs
+   ```
+   Isso cria as tabelas `profiles` (contas de login), `sessions`, `tasks`, `events`, `materials`, `notifications` e `academic_grades`.
+
+### 3. Login e Registo
 1. Abra a aplicação Axis no navegador.
-2. Clique no botão de engrenagem **Configurações** (ou no selo **Modo Local**) no canto superior direito.
-3. Preencha os campos:
-   - **Supabase URL**: `https://<seu-projeto>.supabase.co`
-   - **Supabase Anon Key**: Sua chave pública `anon` obtida em *Project Settings > API*.
-4. Clique em **Salvar & Conectar**.
+2. Na tela inicial, clique em **Criar Conta**, informe nome, e-mail e senha.
+3. As sessões são mantidas por cookie `httpOnly` por 7 dias; use o botão **Sair** no cabeçalho para encerrar.
 
 ---
 
