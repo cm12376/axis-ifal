@@ -2,10 +2,11 @@
 -- PLATAFORMA AXIS IFAL - ESQUEMA NEON (PostgreSQL)
 -- ==========================================
 
--- 1. TABELA DE PERFIS DE USUÁRIOS
+-- 1. TABELA DE PERFIS DE USUÁRIOS (também serve como conta de login)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE,
+    password_hash TEXT,
     full_name TEXT NOT NULL DEFAULT 'Estudante Novato',
     course TEXT DEFAULT 'Técnico em Informática',
     campus TEXT DEFAULT 'Campus Maceió',
@@ -13,6 +14,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migração idempotente para bancos já existentes (criados antes do login)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
+-- 1B. SESSÕES DE LOGIN (token guardado em cookie httpOnly)
+CREATE TABLE IF NOT EXISTS public.sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON public.sessions(token);
 
 -- 2. TAREFAS KANBAN
 CREATE TABLE IF NOT EXISTS public.tasks (
@@ -79,10 +94,15 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
 );
 
 -- ÍNDICES
+CREATE INDEX IF NOT EXISTS idx_tasks_user ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON public.tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON public.tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_events_user ON public.events(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_date ON public.events(event_date);
+CREATE INDEX IF NOT EXISTS idx_materials_user ON public.materials(user_id);
 CREATE INDEX IF NOT EXISTS idx_materials_category ON public.materials(category);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_grades_user ON public.academic_grades(user_id);
 
 -- ===========================================
 -- DADOS INICIAIS DE DEMONSTRAÇÃO (SEED)

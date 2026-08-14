@@ -37,19 +37,39 @@ function saveLocalData(data) {
 async function request(path, options = {}) {
     const res = await fetch(`${API_BASE}${path}`, {
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         ...options
     });
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Erro ${res.status}`);
+        const err = new Error(data.error || `Erro ${res.status}`);
+        err.status = res.status;
+        throw err;
     }
     return res.status === 204 ? null : res.json();
+}
+
+// === AUTENTICAÇÃO (login/senha via Neon) ===
+export async function apiRegister(email, password, full_name) {
+    return request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, full_name }) });
+}
+
+export async function apiLogin(email, password) {
+    return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+}
+
+export async function apiLogout() {
+    return request('/auth/logout', { method: 'POST' });
+}
+
+export async function apiGetCurrentUser() {
+    return request('/auth/me');
 }
 
 // === TAREFAS ===
 export async function apiFetchTasks() {
     try { return await request('/tasks'); }
-    catch (e) { console.warn('fallback', e); return getLocalData().tasks; }
+    catch (e) { if (e.status === 401) throw e; console.warn('fallback', e); return getLocalData().tasks; }
 }
 
 export async function apiCreateTask(taskData) {
@@ -93,7 +113,7 @@ export async function apiDeleteTask(id) {
 // --- EVENTOS ---
 export async function apiFetchEvents() {
     try { return await request('/events'); }
-    catch (e) { return getLocalData().events; }
+    catch (e) { if (e.status === 401) throw e; return getLocalData().events; }
 }
 
 export async function apiCreateEvent(eventData) {
@@ -124,7 +144,7 @@ export async function apiDeleteEvent(id) {
 // --- MATERIAIS ---
 export async function apiFetchMaterials() {
     try { return await request('/materials'); }
-    catch (e) { return getLocalData().materials; }
+    catch (e) { if (e.status === 401) throw e; return getLocalData().materials; }
 }
 
 export async function apiCreateMaterial(matData) {
@@ -154,7 +174,7 @@ export async function apiDeleteMaterial(id) {
 // --- NOTIFICAÇÕES ---
 export async function apiFetchNotifications() {
     try { return await request('/notifications'); }
-    catch (e) { return getLocalData().notifications; }
+    catch (e) { if (e.status === 401) throw e; return getLocalData().notifications; }
 }
 
 export async function apiAddNotification(text) {
@@ -191,39 +211,14 @@ export async function apiClearNotifications() {
 // --- NOTAS ---
 export async function apiFetchGrades() {
     try { return await request('/grades'); }
-    catch (e) { return getLocalData().grades; }
+    catch (e) { if (e.status === 401) throw e; return getLocalData().grades; }
 }
 
 // --- PERFIL ---
 export async function apiFetchProfile() {
-    try { return await request('/profile'); }
-    catch (e) { return getLocalData().user; }
+    return request('/profile');
 }
 
 export async function apiUpdateProfile(name) {
-    try {
-        const existing = await request('/profile');
-        if (existing && existing.id) {
-            await request(`/profile/${existing.id}`, { method: 'PUT', body: JSON.stringify({ full_name: name }) });
-        } else {
-            await request('/profile', { method: 'POST', body: JSON.stringify({ full_name: name }) });
-        }
-    } catch (e) {
-        const local = getLocalData();
-        local.user.name = name;
-        saveLocalData(local);
-    }
-}
-
-// ==========================================
-// COMPATIBILIDADE (antes: credenciais Supabase)
-// Agora a conexão usa variáveis do servidor na Vercel.
-// Mantém o contrato para o app.js não quebrar.
-// ==========================================
-export function getSupabaseConfig() {
-    return { url: '', key: '', isConnected: true };
-}
-
-export function setSupabaseConfig() {
-    return true;
+    return request('/profile', { method: 'PUT', body: JSON.stringify({ full_name: name }) });
 }

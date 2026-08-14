@@ -1,6 +1,7 @@
-// API de Materiais de Estudo
+// API de Materiais de Estudo (isolada por usuário autenticado)
 import { pool } from './_db.js';
 import { ok, fail, getBody } from './_helpers.js';
+import { requireAuth } from './_auth.js';
 
 export default async function handler(req, res) {
     const { method } = req;
@@ -8,10 +9,14 @@ export default async function handler(req, res) {
     const id = segments[segments.length - 1];
 
     try {
+        const user = await requireAuth(req, res);
+        if (!user) return;
+
         switch (method) {
             case 'GET': {
                 const result = await pool.query(
-                    'SELECT * FROM public.materials ORDER BY created_at DESC'
+                    'SELECT * FROM public.materials WHERE user_id = $1 ORDER BY created_at DESC',
+                    [user.id]
                 );
                 return ok(res, result.rows);
             }
@@ -22,15 +27,15 @@ export default async function handler(req, res) {
                     return fail(res, 'Título e URL são obrigatórios', 400);
                 }
                 const result = await pool.query(
-                    `INSERT INTO public.materials (title, link_url, category, description)
-                     VALUES ($1, $2, $3, $4) RETURNING *`,
-                    [title, link || link_url, category, description]
+                    `INSERT INTO public.materials (user_id, title, link_url, category, description)
+                     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                    [user.id, title, link || link_url, category, description]
                 );
                 return ok(res, result.rows[0], 201);
             }
             case 'DELETE': {
                 if (!id) return fail(res, 'ID ausente', 400);
-                await pool.query('DELETE FROM public.materials WHERE id = $1', [id]);
+                await pool.query('DELETE FROM public.materials WHERE id = $1 AND user_id = $2', [id, user.id]);
                 return ok(res, { success: true });
             }
             default:

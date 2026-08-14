@@ -4,8 +4,10 @@
 // ==========================================
 
 import {
-    getSupabaseConfig,
-    setSupabaseConfig,
+    apiRegister,
+    apiLogin,
+    apiLogout,
+    apiGetCurrentUser,
     apiFetchTasks,
     apiCreateTask,
     apiUpdateTaskStatus,
@@ -48,9 +50,92 @@ let pomoInterval = null;
 let pomoTime = 25 * 60;
 let pomoCurrentMode = 'foco';
 
+// --- AUTENTICAÇÃO (LOGIN / REGISTO) ---
+let authMode = 'login';
+
+async function boot() {
+    applyStoredTheme();
+    try {
+        const user = await apiGetCurrentUser();
+        appState.user.name = user.full_name;
+        showApp();
+        await initApp();
+    } catch (e) {
+        showAuthScreen();
+    }
+}
+
+function showAuthScreen() {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app-shell').classList.add('hidden');
+}
+
+function showApp() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-shell').classList.remove('hidden');
+}
+
+function setAuthMode(mode) {
+    authMode = mode;
+    const isLogin = mode === 'login';
+    document.getElementById('auth-title').innerText = isLogin ? 'Entrar na Plataforma' : 'Criar Conta';
+    document.getElementById('auth-name-field').classList.toggle('hidden', isLogin);
+    document.getElementById('auth-submit-btn').innerText = isLogin ? 'Entrar' : 'Criar Conta';
+    document.getElementById('auth-toggle-text').innerText = isLogin ? 'Ainda não tem conta?' : 'Já tem conta?';
+    document.getElementById('auth-toggle-btn').innerText = isLogin ? 'Criar Conta' : 'Entrar';
+    document.getElementById('auth-error').classList.add('hidden');
+}
+
+function toggleAuthMode() {
+    setAuthMode(authMode === 'login' ? 'register' : 'login');
+}
+
+async function submitAuthForm() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const fullName = document.getElementById('auth-name').value.trim();
+    const errorEl = document.getElementById('auth-error');
+    errorEl.classList.add('hidden');
+
+    if (!email || !password) {
+        errorEl.innerText = 'Preencha e-mail e senha.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        if (authMode === 'login') {
+            await apiLogin(email, password);
+        } else {
+            await apiRegister(email, password, fullName || 'Estudante Novato');
+        }
+        document.getElementById('auth-email').value = '';
+        document.getElementById('auth-password').value = '';
+        document.getElementById('auth-name').value = '';
+        const user = await apiGetCurrentUser();
+        appState.user.name = user.full_name;
+        showApp();
+        await initApp();
+        showToast(`Bem-vindo(a), ${user.full_name}!`);
+    } catch (e) {
+        errorEl.innerText = e.message || 'Erro ao autenticar.';
+        errorEl.classList.remove('hidden');
+    }
+}
+
+async function doLogout() {
+    try { await apiLogout(); } catch (e) { /* ignore */ }
+    appState = {
+        theme: appState.theme,
+        user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Maceió' },
+        tasks: [], events: [], materials: [], notifications: [], grades: []
+    };
+    setAuthMode('login');
+    showAuthScreen();
+}
+
 // --- CARREGAMENTO E INICIALIZAÇÃO DA APLICAÇÃO ---
 async function initApp() {
-    applyStoredTheme();
     setHeaderDate();
     updateSupabaseBadge();
 
@@ -84,6 +169,11 @@ async function initApp() {
         renderGradesSection();
 
     } catch (err) {
+        if (err.status === 401) {
+            setAuthMode('login');
+            showAuthScreen();
+            return;
+        }
         console.error("Erro ao inicializar dados da plataforma:", err);
         showToast("Erro ao carregar dados. Modo de contingência ativado.");
     }
@@ -674,7 +764,7 @@ async function sendChatMessage() {
     typing.classList.remove('hidden');
 
     try {
-        const response = await askGeminiTutor(userMsg);
+        const response = await askGeminiTutor(userMsg, import.meta.env.VITE_GROQ_API_KEY || '');
         appendChatMessage(response, 'ai');
     } catch (err) {
         appendChatMessage("Desculpe, ocorreu um erro de conexão com o Tutor Virtual.", 'ai');
@@ -881,6 +971,9 @@ function setHeaderDate() {
 }
 
 // --- BIND DE FUNÇÕES AO WINDOW ---
+window.toggleAuthMode = toggleAuthMode;
+window.submitAuthForm = submitAuthForm;
+window.doLogout = doLogout;
 window.changeTab = changeTab;
 window.toggleMobileSidebar = toggleMobileSidebar;
 window.toggleDarkMode = toggleDarkMode;
@@ -911,4 +1004,4 @@ window.togglePomo = togglePomo;
 window.resetPomo = resetPomo;
 
 // Inicialização ao carregar o DOM
-document.addEventListener('DOMContentLoaded', initApp);
+document.addEventListener('DOMContentLoaded', boot);

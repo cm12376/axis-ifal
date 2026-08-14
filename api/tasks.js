@@ -1,6 +1,7 @@
-// API de Tarefas Kanban
+// API de Tarefas Kanban (isolada por usuário autenticado)
 import { pool } from './_db.js';
 import { ok, fail, getBody } from './_helpers.js';
+import { requireAuth } from './_auth.js';
 
 export default async function handler(req, res) {
     const { method } = req;
@@ -8,10 +9,14 @@ export default async function handler(req, res) {
     const id = segments[segments.length - 1]; // id presente se for /api/tasks/<id>
 
     try {
+        const user = await requireAuth(req, res);
+        if (!user) return;
+
         switch (method) {
             case 'GET': {
                 const result = await pool.query(
-                    'SELECT * FROM public.tasks ORDER BY created_at DESC'
+                    'SELECT * FROM public.tasks WHERE user_id = $1 ORDER BY created_at DESC',
+                    [user.id]
                 );
                 return ok(res, result.rows);
             }
@@ -22,9 +27,9 @@ export default async function handler(req, res) {
                     return fail(res, 'Título e data são obrigatórios', 400);
                 }
                 const result = await pool.query(
-                    `INSERT INTO public.tasks (title, category, due_date, priority, status)
-                     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                    [title, category, date || due_date, priority, status]
+                    `INSERT INTO public.tasks (user_id, title, category, due_date, priority, status)
+                     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                    [user.id, title, category, date || due_date, priority, status]
                 );
                 return ok(res, result.rows[0], 201);
             }
@@ -33,14 +38,14 @@ export default async function handler(req, res) {
                 const body = await getBody(req);
                 const { status: newStatus } = body;
                 const result = await pool.query(
-                    'UPDATE public.tasks SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-                    [newStatus, id]
+                    'UPDATE public.tasks SET status = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING *',
+                    [newStatus, id, user.id]
                 );
                 return result.rows.length ? ok(res, result.rows[0]) : fail(res, 'Não encontrado', 404);
             }
             case 'DELETE': {
                 if (!id) return fail(res, 'ID ausente', 400);
-                await pool.query('DELETE FROM public.tasks WHERE id = $1', [id]);
+                await pool.query('DELETE FROM public.tasks WHERE id = $1 AND user_id = $2', [id, user.id]);
                 return ok(res, { success: true });
             }
             default:
