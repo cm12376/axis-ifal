@@ -110,8 +110,8 @@ INSERT INTO public.materials (title, link_url, category, description) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.notifications (text, read, date_label) VALUES
-('Lembra-te: O prazo do projeto de Inovação PIBITI expira esta semana.', false, 'Hoje'),
-('A tua assiduidade atual na disciplina de Algoritmos está em 88%. Estás seguro!', false, 'Ontem')
+('Lembre-se: O prazo do projeto de Inovação PIBITI expira esta semana.', false, 'Hoje'),
+('A sua assiduidade atual na disciplina de Algoritmos está em 88%. Você está seguro!', false, 'Ontem')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.academic_grades (subject, b1_grade, b2_grade) VALUES

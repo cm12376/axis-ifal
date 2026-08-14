@@ -246,7 +246,7 @@ function renderDashboard() {
             const dateStr = e.event_date || e.date;
             const dObj = new Date(dateStr);
             const dNum = dObj.getDate().toString().padStart(2, '0');
-            const mStr = dObj.toLocaleString('pt-PT', { month: 'short' }).toUpperCase();
+            const mStr = dObj.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
 
             const dCard = document.createElement('div');
             dCard.className = "flex gap-3 items-center";
@@ -389,7 +389,7 @@ function renderCalendar() {
     detailList.innerHTML = '';
 
     const activeDate = new Date(calCurrentYear, calCurrentMonth, 1);
-    monthLabel.innerText = activeDate.toLocaleString('pt-PT', { month: 'long', year: 'numeric' }).toUpperCase();
+    monthLabel.innerText = activeDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
 
     const startDayIndex = activeDate.getDay();
     const daysInMonth = new Date(calCurrentYear, calCurrentMonth + 1, 0).getDate();
@@ -535,7 +535,7 @@ function renderMaterials() {
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <a href="${m.link_url || m.link}" target="_blank" rel="noopener" class="text-emerald-600 dark:text-emerald-400 hover:underline text-xs font-semibold inline-flex items-center gap-1.5">
-                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Abrir Ficheiro
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Abrir Arquivo
                 </a>
             </div>
         `;
@@ -577,7 +577,7 @@ async function submitNewMaterial() {
     closeAddMaterialModal();
     document.getElementById('m-mat-title').value = '';
     document.getElementById('m-mat-link').value = '';
-    showToast("Material guardado com sucesso na pasta digital!");
+    showToast("Material salvo com sucesso na pasta digital!");
 }
 
 async function deleteMaterial(id) {
@@ -653,7 +653,7 @@ function simPerformance() {
 
     const status = document.getElementById('sim-status-label');
     if (finalAvg >= 6.0) {
-        status.innerText = "Parabéns! Estás no caminho certo para a aprovação direta.";
+        status.innerText = "Parabéns! Você está no caminho certo para a aprovação direta.";
         status.className = "text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1.5";
     } else {
         status.innerText = "Média prevista abaixo do mínimo (6.0). Recomendamos intensificar as revisões.";
@@ -877,7 +877,7 @@ function formatDateDisplay(dateStr) {
 function setHeaderDate() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const dateEl = document.getElementById('topbar-date');
-    if (dateEl) dateEl.innerText = new Date().toLocaleDateString('pt-PT', options);
+    if (dateEl) dateEl.innerText = new Date().toLocaleDateString('pt-BR', options);
 }
 
 // --- BIND DE FUNÇÕES AO WINDOW ---
