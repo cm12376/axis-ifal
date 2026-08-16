@@ -2,9 +2,9 @@
 import { Pool } from '@neondatabase/serverless';
 import { readFileSync } from 'node:fs';
 
-const DATABASE_URL = process.env.NEON_DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
 if (!DATABASE_URL) {
-    console.error('Defina NEON_DATABASE_URL');
+    console.error('Defina DATABASE_URL ou NEON_DATABASE_URL');
     process.exit(1);
 }
 
