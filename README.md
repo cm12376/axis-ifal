@@ -31,7 +31,7 @@ A **Plataforma Axis** é um sistema inteligente de apoio à orientação acadêm
    ```
    Isso cria as tabelas `profiles` (contas de login), `sessions`, `tasks`, `events`, `materials`, `notifications` e `academic_grades`.
 
-### 3. Login e Registo
+### 3. Login e Registro
 1. Abra a aplicação Axis no navegador.
 2. Na tela inicial, clique em **Criar Conta**, informe nome, e-mail e senha.
 3. As sessões são mantidas por cookie `httpOnly` por 7 dias; use o botão **Sair** no cabeçalho para encerrar.
