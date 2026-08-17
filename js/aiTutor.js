@@ -99,7 +99,7 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
             }
 
             const payload = {
-                model: isImage ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile',
+                model: isImage ? 'qwen/qwen3.6-27b' : 'openai/gpt-oss-120b',
                 messages: [
                     { role: 'system', content: SYSTEM_PROMPT },
                     ...history,
