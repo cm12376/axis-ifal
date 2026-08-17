@@ -138,7 +138,12 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
                     }
 
                     const status = response.status;
-                    lastError = `${model}: HTTP ${status}`;
+                    let detail = '';
+                    try {
+                        const errBody = await response.json();
+                        detail = errBody?.error?.message || errBody?.error?.code || '';
+                    } catch (_) {}
+                    lastError = `${model}: HTTP ${status}${detail ? ' - ' + detail.slice(0, 120) : ''}`;
                     if (status === 429 || status === 500 || status === 503) {
                         const reset = parseFloat(response.headers.get('x-ratelimit-reset-tokens') || '0');
                         const wait = Math.min(reset > 0 ? reset * 1000 : 2500, 10000);
