@@ -54,6 +54,19 @@ function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function normalizeTableTabs(text) {
+    return String(text).replace(/(^|\n)([^\n]*\t[^\n]*\n(?:[^\n]*\t[^\n]*\n?)+)/g, (m, prefix, block) => {
+        const rows = block.split('\n').filter(Boolean);
+        const cols = rows[0].split('\t').length;
+        if (rows.length < 2 || rows.some(r => r.split('\t').length !== cols)) return m;
+        const pipe = r => '| ' + r.split('\t').map(c => c.trim()).join(' | ') + ' |';
+        const header = pipe(rows[0]);
+        const sep = '|' + new Array(cols).fill('---').join('|') + '|';
+        const body = rows.slice(1).map(pipe).join('\n');
+        return prefix + header + '\n' + sep + '\n' + body;
+    });
+}
+
 function renderKatexBlocks(text) {
     const blocks = [];
     const placeholder = (m) => {
@@ -63,6 +76,8 @@ function renderKatexBlocks(text) {
     };
     let out = text
         .replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => placeholder({ expr: expr.trim(), block: true }))
+        .replace(/\\\[([\s\S]+?)\\\]/g, (m, expr) => placeholder({ expr: expr.trim(), block: true }))
+        .replace(/\[([^\]\n]*(?:\\[^\]\n]*)+)\]/g, (m, expr) => placeholder({ expr: expr.trim(), block: true }))
         .replace(/\$([^$\n]+?)\$/g, (m, expr) => placeholder({ expr: expr.trim(), block: false }));
     blocks.forEach((b, i) => {
         const html = b.block
@@ -74,7 +89,7 @@ function renderKatexBlocks(text) {
 }
 
 async function renderMarkdown(text) {
-    const rawHtml = marked.parse(text);
+    const rawHtml = marked.parse(normalizeTableTabs(text));
     const withKatex = renderKatexBlocks(rawHtml);
 
     const template = document.createElement('template');
