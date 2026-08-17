@@ -164,7 +164,7 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
             return getLocalPdfResponse(query, attachment.text, lastError);
         }
 
-        return getLocalTutorResponse(query);
+        return getLocalTutorResponse(query, lastError);
     }
 
     if (attachment?.type === 'pdf') {
@@ -181,8 +181,12 @@ function getLocalPdfResponse(query, pdfText, lastError = null) {
     return "⚠️ **Não consegui acessar a IA agora** (a API de IA está sobrecarregada no momento).\n\nEnvie sua pergunta novamente em alguns instantes — tentarei automaticamente outros modelos de IA para analisar seu documento.";
 }
 
-function getLocalTutorResponse(query) {
+function getLocalTutorResponse(query, lastError = null) {
     const q = query.toLowerCase();
+
+    if (lastError) {
+        return `⚠️ **Não consegui acessar a IA agora** (erro: ${lastError}).\n\nEnvie sua pergunta novamente em alguns instantes.`;
+    }
 
     if (q.includes("sigaa") || q.includes("sistema") || q.includes("nota") || q.includes("histórico")) {
         return "📱 **Guia Rápido do SIGAA IFAL**:\n\n1. Acesse [sigaa.ifal.edu.br](https://sigaa.ifal.edu.br)\n2. Clique em **Cadastro de Discente** se for seu primeiro acesso.\n3. Digite sua Matrícula de Ingressante, CPF e Ano de Ingresso.\n4. No portal, você pode consultar o Histórico Acadêmico, emitir Declaração de Matrícula e submeter tarefas enviadas pelos professores.";
