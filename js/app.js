@@ -990,32 +990,14 @@ async function renderPdfPageAsImage(file) {
 function showChatAttachment(attachment) {
     document.getElementById('chat-attach-name').textContent = attachment.name;
     document.getElementById('chat-attach-preview').classList.remove('hidden');
-    document.getElementById('chat-quick-actions').classList.remove('hidden');
 }
 
 function removeChatAttachment() {
     chatAttachment = null;
     document.getElementById('chat-attach-preview').classList.add('hidden');
-    document.getElementById('chat-quick-actions').classList.add('hidden');
     const fileInput = document.getElementById('chat-file');
     if (fileInput) fileInput.value = '';
     lucideRefresh();
-}
-
-function quickChatAction(action) {
-    if (!chatAttachment) return;
-    const prompts = {
-        summary: 'Faça um resumo organizado deste documento, com tópicos e pontos-chave.',
-        quiz: 'Crie um quiz com 5 perguntas sobre este documento. Apresente uma por vez e aguarde minha resposta.',
-        explain: 'Explique este documento de forma simples, como se eu estivesse começando a estudar o assunto.',
-        review: 'Faça uma revisão rápida sobre o conteúdo deste documento, com perguntas objetivas.'
-    };
-    const prompt = prompts[action];
-    if (!prompt) return;
-    const input = document.getElementById('chat-input');
-    input.value = prompt;
-    autoResizeChatInput();
-    sendChatMessage();
 }
 
 function lucideRefresh() {
@@ -1321,7 +1303,6 @@ window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
 window.handleChatFile = handleChatFile;
 window.removeChatAttachment = removeChatAttachment;
-window.quickChatAction = quickChatAction;
 window.stopChatGeneration = stopChatGeneration;
 window.handleChatKey = handleChatKey;
 window.toggleChatMenu = toggleChatMenu;
