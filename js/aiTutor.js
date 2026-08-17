@@ -93,6 +93,8 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
         const visionModels = ['qwen/qwen3.6-27b', 'groq/compound'];
         const models = isImage ? visionModels : (hasPdf ? pdfModels : textModels);
 
+        let lastError = null;
+
         let userContent;
         if (isImage) {
             userContent = [
@@ -131,10 +133,12 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
                         const data = await response.json();
                         const text = data.choices?.[0]?.message?.content;
                         if (text) return text;
+                        lastError = `${model}: resposta vazia`;
                         break;
                     }
 
                     const status = response.status;
+                    lastError = `${model}: HTTP ${status}`;
                     if (status === 429 || status === 500 || status === 503) {
                         const reset = parseFloat(response.headers.get('x-ratelimit-reset-tokens') || '0');
                         const wait = Math.min(reset > 0 ? reset * 1000 : 2500, 10000);
@@ -144,11 +148,18 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
                     break;
                 } catch (err) {
                     if (err.name === 'AbortError') throw err;
+                    lastError = `${model}: ${err.message}`;
                     console.warn(`Falha com modelo ${model}, tentando próximo:`, err);
                     break;
                 }
             }
         }
+
+        if (attachment?.type === 'pdf') {
+            return getLocalPdfResponse(query, attachment.text, lastError);
+        }
+
+        return getLocalTutorResponse(query);
     }
 
     if (attachment?.type === 'pdf') {
@@ -158,7 +169,10 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
     return getLocalTutorResponse(query);
 }
 
-function getLocalPdfResponse(query, pdfText) {
+function getLocalPdfResponse(query, pdfText, lastError = null) {
+    if (lastError) {
+        return `⚠️ **Não consegui acessar a IA agora** (erro: ${lastError}).\n\nEnvie sua pergunta novamente em alguns instantes.`;
+    }
     return "⚠️ **Não consegui acessar a IA agora** (a API de IA está sobrecarregada no momento).\n\nEnvie sua pergunta novamente em alguns instantes — tentarei automaticamente outros modelos de IA para analisar seu documento.";
 }
 
