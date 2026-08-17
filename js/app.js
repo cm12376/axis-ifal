@@ -974,7 +974,7 @@ async function extractPdfText(file) {
         const content = await page.getTextContent();
         text += content.items.map(item => item.str).join(' ') + '\n';
     }
-    return text.slice(0, 6000);
+    return text.slice(0, 4000);
 }
 
 async function renderPdfPageAsImage(file) {
@@ -1040,7 +1040,10 @@ async function sendChatMessage() {
     setChatStopBtnVisible(true);
 
     try {
-        const historyForAi = chatHistory.slice(-12).map(m => ({ role: m.role, content: m.content }));
+        const historyForAi = chatHistory.slice(-8).map(m => ({
+            role: m.role,
+            content: m.content.length > 1500 ? m.content.slice(0, 1500) + '…' : m.content
+        }));
         const response = await askGeminiTutor(modePrompt, import.meta.env.VITE_GROQ_API_KEY || '', chatAttachment, chatAbortController.signal, historyForAi);
         chatHistory.push({ role: 'user', content: sentMsg });
         chatHistory.push({ role: 'assistant', content: response });
