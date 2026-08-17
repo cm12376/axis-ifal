@@ -86,9 +86,12 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
     if (hasApi) {
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         const isImage = attachment?.type === 'image';
+        const hasPdf = attachment?.type === 'pdf';
+
         const textModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'];
+        const pdfModels = ['groq/compound', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
         const visionModels = ['qwen/qwen3.6-27b', 'groq/compound'];
-        const models = isImage ? visionModels : textModels;
+        const models = isImage ? visionModels : (hasPdf ? pdfModels : textModels);
 
         let userContent;
         if (isImage) {
@@ -96,14 +99,14 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
                 { type: 'text', text: query || 'Analise esta imagem e responda sobre o que ela contém.' },
                 { type: 'image_url', image_url: { url: attachment.data } }
             ];
-        } else if (attachment?.type === 'pdf') {
+        } else if (hasPdf) {
             userContent = `${query}\n\n[Conteúdo extraído do documento anexado]:\n${attachment.text}`;
         } else {
             userContent = query;
         }
 
-        for (let attempt = 0; attempt < 3; attempt++) {
-            for (const model of models) {
+        for (const model of models) {
+            for (let attempt = 0; attempt < 2; attempt++) {
                 try {
                     const payload = {
                         model,
@@ -128,17 +131,21 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
                         const data = await response.json();
                         const text = data.choices?.[0]?.message?.content;
                         if (text) return text;
-                        continue;
+                        break;
                     }
 
                     const status = response.status;
                     if (status === 429 || status === 500 || status === 503) {
-                        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+                        const reset = parseFloat(response.headers.get('x-ratelimit-reset-tokens') || '0');
+                        const wait = Math.min(reset > 0 ? reset * 1000 : 2500, 10000);
+                        await new Promise(r => setTimeout(r, wait));
                         continue;
                     }
+                    break;
                 } catch (err) {
                     if (err.name === 'AbortError') throw err;
                     console.warn(`Falha com modelo ${model}, tentando próximo:`, err);
+                    break;
                 }
             }
         }
