@@ -872,16 +872,18 @@ function handleChatMenuPick(option) {
     menu.classList.add('hidden');
     if (option === 'file') {
         document.getElementById('chat-file').click();
-    } else if (option === 'quiz' || option === 'explain' || option === 'review') {
-        const modes = {
-            quiz: { label: 'Criar quiz', prompt: 'Crie um quiz sobre o seguinte conteúdo. Se o estudante não especificar a quantidade, gere 10 questões:' },
-            explain: { label: 'Explicar', prompt: 'Explique de forma simples, com exemplos e analogias:' },
-            review: { label: 'Revisar', prompt: 'Faça uma revisão rápida com perguntas objetivas sobre:' }
-        };
-        setChatMode(option, modes[option]);
+    } else if (CHAT_MODES[option]) {
+        setChatMode(option, CHAT_MODES[option]);
         document.getElementById('chat-input').focus();
     }
 }
+
+const CHAT_MODES = {
+    summary: { label: 'Resumir', prompt: 'Faça um resumo organizado deste documento, com títulos, tópicos e pontos-chave:' },
+    quiz: { label: 'Criar quiz', prompt: 'Crie um quiz sobre o seguinte conteúdo. Se o estudante não especificar a quantidade, gere 10 questões:' },
+    explain: { label: 'Explicar', prompt: 'Explique de forma simples, com exemplos e analogias:' },
+    review: { label: 'Revisar', prompt: 'Faça uma revisão rápida com perguntas objetivas sobre:' }
+};
 
 function setChatMode(mode, info) {
     chatMode = { key: mode, ...info };
@@ -891,6 +893,7 @@ function setChatMode(mode, info) {
     badge.classList.remove('hidden');
 
     const styles = {
+        summary: { border: 'border-violet-500', text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/40' },
         quiz: { border: 'border-amber-500', text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40' },
         explain: { border: 'border-blue-500', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/40' },
         review: { border: 'border-rose-500', text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-950/40' }
@@ -901,7 +904,7 @@ function setChatMode(mode, info) {
     input.classList.add('border-2', s.border);
     input.style.paddingTop = '1.7rem';
 
-    badge.classList.remove('text-amber-600', 'dark:text-amber-400', 'text-blue-600', 'dark:text-blue-400', 'text-rose-600', 'dark:text-rose-400');
+    badge.classList.remove('text-amber-600', 'dark:text-amber-400', 'text-blue-600', 'dark:text-blue-400', 'text-rose-600', 'dark:text-rose-400', 'text-violet-600', 'dark:text-violet-400');
     badge.classList.add(s.text, s.bg);
 }
 
@@ -909,7 +912,7 @@ function clearChatMode() {
     chatMode = null;
     const input = document.getElementById('chat-input');
     const badge = document.getElementById('chat-mode-badge');
-    input.classList.remove('border-2', 'border-amber-500', 'border-blue-500', 'border-rose-500');
+    input.classList.remove('border-2', 'border-amber-500', 'border-blue-500', 'border-rose-500', 'border-violet-500');
     input.classList.add('border', 'border-slate-200', 'dark:border-slate-800');
     input.style.paddingTop = '';
     badge.classList.add('hidden');
@@ -990,14 +993,24 @@ async function renderPdfPageAsImage(file) {
 function showChatAttachment(attachment) {
     document.getElementById('chat-attach-name').textContent = attachment.name;
     document.getElementById('chat-attach-preview').classList.remove('hidden');
+    document.getElementById('chat-quick-actions').classList.remove('hidden');
 }
 
 function removeChatAttachment() {
     chatAttachment = null;
     document.getElementById('chat-attach-preview').classList.add('hidden');
+    document.getElementById('chat-quick-actions').classList.add('hidden');
     const fileInput = document.getElementById('chat-file');
     if (fileInput) fileInput.value = '';
     lucideRefresh();
+}
+
+function quickChatAction(action) {
+    if (!chatAttachment) return;
+    const info = CHAT_MODES[action];
+    if (!info) return;
+    setChatMode(action, info);
+    document.getElementById('chat-input').focus();
 }
 
 function lucideRefresh() {
@@ -1303,6 +1316,7 @@ window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
 window.handleChatFile = handleChatFile;
 window.removeChatAttachment = removeChatAttachment;
+window.quickChatAction = quickChatAction;
 window.stopChatGeneration = stopChatGeneration;
 window.handleChatKey = handleChatKey;
 window.toggleChatMenu = toggleChatMenu;
