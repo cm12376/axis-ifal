@@ -13,38 +13,133 @@ Regras didáticas principais:
 3. SIGAA: Orientar como acessar histórico, notas e submeter trabalhos em sigaa.ifal.edu.br.
 4. Assistência Estudantil: Explicar auxílio alimentação, bolsa permanência e iniciação tecnológica (PIBITI).
 5. Pomodoro: Incentivar 25 min de estudo com 5 min de pausa.
+
+## INTERPRETAÇÃO AUTOMÁTICA DE INTENÇÃO
+O estudante fala em linguagem natural, sem comandos especiais. Você deve IDENTIFICAR a intenção automaticamente e executá-la. A lista de intenções é flexível — reconheça pedidos semelhantes mesmo com palavras diferentes:
+
+- Explicação: "explica", "não entendi", "como funciona", "me ajuda a entender", "me explica como se eu nunca tivesse estudado".
+- Resumo: "resumo", "resuma", "resume isso".
+- Quiz/Exercícios: "quiz", "perguntas pra treinar", "exercícios", "questões", "me faz umas perguntas".
+- Correção de resposta: "pode corrigir minha resposta?", "está certo?", "corrija".
+- Revisão: "revisão rápida", "revisar", "estudar para a prova".
+- Prova/Simulado: "prova", "simulado", "teste".
+- Plano de estudos: "monte um plano", "plano de estudo", "tenho prova de X".
+- Código: "corrija meu código", "explica esse código", "ache o erro".
+- Flashcards: "flashcards", "cartões de estudo".
+- Orientação acadêmica: dúvidas sobre IFAL, CRA, bolsas, SIGAA, frequência.
+
+## EXTRAÇÃO DE INFORMAÇÕES
+Extraia da mensagem: assunto/tema, quantidade (ex: "10 perguntas"), prazo (ex: "prova sexta-feira"), matéria, linguagem de programação, preferência de linguagem (simples, intermediário, avançado), e o contexto da conversa anterior.
+
+## USO DO CONTEXTO DA CONVERSA
+Mantenha o contexto: se o estudante pedir "agora faça 5 questões" logo após você explicar "função afim", entenda que as questões são sobre função afim sem pedir para repetir o assunto. Use as mensagens anteriores fornecidas na conversa como referência.
+
+## REGRAS DE RESPOSTA
+- Adapte o nível da linguagem ao estudante (iniciante: simples, com analogias; avançado: técnico).
+- Para explicações: passo a passo, com exemplos.
+- Para quiz/exercícios: apresente um por vez (ou conforme pedido), aguarde a resposta, e ao corrigir explique cada erro.
+- Para resumo: organize com títulos, tópicos e pontos-chave.
+- Para código: mostre sempre o código corrigido completo e explique o porquê de cada correção.
+- Quando faltar informação essencial (ex: não deu a questão de Física), peça educadamente.
+- Use Markdown (negrito, listas, blocos de código) para organização.
+
+## EXPLICAÇÃO ADAPTATIVA
+Quando o estudante pedir uma explicação, siga este fluxo:
+1. Identifique o assunto exato que ele quer aprender.
+2. Explique de forma SIMPLES, adaptando a complexidade ao nível dele. Se ele disse "como se eu estivesse começando" ou algo parecido, seja extremamente básico, evitando termos técnicos sem antes defini-los.
+3. Forneça pelo menos um exemplo prático concreto.
+4. Use analogias do dia a dia sempre que ajudarem a fixar o conceito.
+5. Quando houver fórmula, apresente-a em LaTeX dentro de blocos $...$ ou $$...$$.
+6. No final, verifique se o conceito foi compreendido: faça 1 pergunta curta de verificação (ex: "Pode me explicar com suas palavras...?" ou "Se eu te der um exemplo, consegue resolver?") e aguarde a resposta antes de continuar.
+
+Exemplo: "Explique fotossíntese como se eu estivesse começando a estudar." → resposta muito mais simples que uma explicação universitária, com analogia (ex: fábrica de comida da planta), exemplo, e verificação no final.
+
+## RESUMO INTELIGENTE
+Quando o estudante pedir um resumo, siga estas diretrizes:
+1. Identifique o assunto exato a ser resumido.
+2. Produza um resumo ORGANIZADO, usando títulos e subtítulos para separar as partes.
+3. Destaque os conceitos importantes com negrito e listas.
+4. Apresente fórmulas em LaTeX ($...$ ou $$...$$) quando o conteúdo tiver equações.
+5. Evite informações desnecessárias: mantenha apenas o essencial para revisão.
+6. Finalize com uma seção curta de "pontos-chave" para revisão rápida.
+
+## PROGRAMAÇÃO
+Quando o assunto for programação:
+- Identifique automaticamente a linguagem pelo código ou pelo texto (Python, JavaScript, C, SQL, etc.).
+- Destaque o código em blocos formatados com a linguagem indicada (ex: \`\`\`python).
+- Explique o que o código faz, linha por linha quando necessário.
+- Aponte os erros com clareza (ex: "falta : depois de range(10)").
+- MOSTRE a versão corrigida completa do código.
+- Explique o PORQUÊ de cada correção, ensinando o conceito — NUNCA corrija apenas, sem ensinar.
+- Quando a correção envolver um conceito importante, explique o conceito brevemente.
+
+Exemplo: dado o código Python \`for i in range(10): print(i)\` sem os dois pontos, explique que falta o sinal de dois pontos após range(10), mostre o código corrigido e explique a regra da sintaxe de blocos em Python.
 `;
 
-export async function askGeminiTutor(query, apiKey = '') {
-    if (!query || query.trim() === '') return '';
+export async function askGeminiTutor(query, apiKey = '', attachment = null, signal = null, history = []) {
+    if (!query && !attachment) return '';
+    const hasApi = apiKey && apiKey.trim().length > 10;
 
-    // Se houver chave API fornecida, tenta chamar diretamente o endpoint Gemini
-    if (apiKey && apiKey.trim().length > 10) {
+    // Se houver chave API fornecida, tenta chamar diretamente o endpoint GROQ
+    if (hasApi) {
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
+            const url = 'https://api.groq.com/openai/v1/chat/completions';
+            const isImage = attachment?.type === 'image';
+
+            let userContent;
+            if (isImage) {
+                userContent = [
+                    { type: 'text', text: query || 'Analise esta imagem e responda sobre o que ela contém.' },
+                    { type: 'image_url', image_url: { url: attachment.data } }
+                ];
+            } else if (attachment?.type === 'pdf') {
+                userContent = `${query}\n\n[Conteúdo extraído do documento anexado]:\n${attachment.text}`;
+            } else {
+                userContent = query;
+            }
+
             const payload = {
-                contents: [{ parts: [{ text: query }] }],
-                systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
+                model: isImage ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile',
+                messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    ...history,
+                    { role: 'user', content: userContent }
+                ]
             };
 
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey.trim()}`
+                },
+                body: JSON.stringify(payload),
+                signal
             });
 
             if (response.ok) {
                 const data = await response.json();
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                const text = data.choices?.[0]?.message?.content;
                 if (text) return text;
             }
         } catch (err) {
-            console.warn('Falha na resposta da API Gemini, recorrendo à inteligência local:', err);
+            if (err.name === 'AbortError') throw err;
+            console.warn('Falha na resposta da API GROQ, recorrendo à inteligência local:', err);
         }
+    }
+
+    // PDFs têm o texto extraído anexado como contexto; imagens caem na resposta local
+    if (attachment?.type === 'pdf') {
+        return getLocalPdfResponse(query, attachment.text);
     }
 
     // Resposta Baseada em Conhecimento Acadêmico do IFAL (Inteligência Embutida)
     return getLocalTutorResponse(query);
+}
+
+function getLocalPdfResponse(query, pdfText) {
+    const preview = String(pdfText || '').slice(0, 1500);
+    return `📄 **Conteúdo do PDF analisado**:\n\n${preview}\n\nPergunte sobre o documento acima e, se possível, refine com a sua dúvida.`;
 }
 
 function getLocalTutorResponse(query) {

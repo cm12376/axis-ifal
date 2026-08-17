@@ -32,6 +32,9 @@
     <!-- Lucide Icons & Chart.js -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF.js para extração de texto de PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <!-- Estilos Customizados -->
     <link rel="stylesheet" href="./css/styles.css">
 </head>
@@ -82,7 +85,7 @@
     <div id="app-shell" class="hidden flex h-full w-full overflow-hidden">
 
         <!-- Sidebar Principal (Menu Esquerdo) -->
-        <aside id="sidebar" class="hidden md:flex flex-col w-64 bg-slate-900 dark:bg-slate-950 text-white shrink-0 border-r border-slate-800 z-30 transition-all duration-300">
+        <aside id="sidebar" class="hidden md:flex flex-col w-64 bg-slate-900 dark:bg-slate-950 text-white shrink-0 border-r border-slate-800 z-30 transition-all duration-300 ease-in-out md:-translate-x-0 -translate-x-full">
             <!-- Cabeçalho Institucional -->
             <div class="p-6 flex items-center gap-3 border-b border-slate-800">
                 <div class="bg-emerald-600 p-2.5 rounded-xl text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
@@ -230,7 +233,7 @@
             </header>
 
             <!-- Overlay de Sidebar Móvel -->
-            <div id="mobile-overlay" class="hidden absolute inset-0 bg-slate-900/60 z-20 md:hidden" onclick="toggleMobileSidebar()"></div>
+            <div id="mobile-overlay" class="hidden absolute inset-0 bg-slate-900/60 z-20 md:hidden opacity-0 transition-opacity duration-300" onclick="toggleMobileSidebar()"></div>
 
             <!-- Área de Conteúdo Principal -->
             <main class="flex-1 overflow-y-auto p-4 md:p-6" id="view-port">
@@ -344,7 +347,7 @@
                         <div class="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs">
                             <div class="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
                                 <h3 class="font-bold text-sm" id="cal-month-label">Maio 2026</h3>
-                                <div class="flex gap-2">
+<div class="flex gap-2">
                                     <button onclick="changeMonth(-1)" class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">
                                         <i data-lucide="chevron-left" class="w-4 h-4"></i>
                                     </button>
@@ -573,13 +576,21 @@
                                         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nota Esperada no Bimestre 2</label>
                                         <input type="number" id="sim-b2" value="6.5" min="0" max="10" step="0.1" oninput="simPerformance()" class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
                                     </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nota Esperada no Bimestre 3</label>
+                                        <input type="number" id="sim-b3" value="6.0" min="0" max="10" step="0.1" oninput="simPerformance()" class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nota Esperada no Bimestre 4</label>
+                                        <input type="number" id="sim-b4" value="6.0" min="0" max="10" step="0.1" oninput="simPerformance()" class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="mt-6 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
                                 <div class="flex justify-between items-center">
                                     <span class="text-xs text-slate-500 font-semibold">Média Prevista</span>
-                                    <span class="text-base font-black text-emerald-600 dark:text-emerald-400" id="sim-result">6.15</span>
+                                    <span class="text-base font-black text-emerald-600 dark:text-emerald-400" id="sim-result">6.08</span>
                                 </div>
                                 <p class="text-[10px] text-slate-400 mt-1.5" id="sim-status-label">Aprovação garantida sem necessidade de prova final.</p>
                             </div>
@@ -623,11 +634,52 @@
                             O Tutor está preparando a orientação...
                         </div>
 
-                        <div class="border-t border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900/40 flex gap-2">
-                            <input type="text" id="chat-input" onkeydown="if(event.key === 'Enter') sendChatMessage()" placeholder="Digite a sua dúvida (ex: como funciona a 2ª chamada)..." class="flex-1 px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-950 focus:outline-none focus:border-emerald-500 transition">
-                            <button onclick="sendChatMessage()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl transition flex items-center justify-center">
-                                <i data-lucide="send" class="w-4 h-4"></i>
-                            </button>
+                        <div class="border-t border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900/40 flex flex-col gap-2">
+                            <div id="chat-attach-preview" class="hidden flex items-center justify-between bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i>
+                                    <span id="chat-attach-name" class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate"></span>
+                                </div>
+                                <button onclick="removeChatAttachment()" class="text-slate-400 hover:text-rose-500 p-1 rounded transition">
+                                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                            <div id="chat-quick-actions" class="hidden flex flex-wrap gap-1.5">
+                                <button onclick="quickChatAction('summary')" class="px-2.5 py-1.5 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 transition">📝 Resumir</button>
+                                <button onclick="quickChatAction('quiz')" class="px-2.5 py-1.5 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 transition">❓ Criar quiz</button>
+                                <button onclick="quickChatAction('explain')" class="px-2.5 py-1.5 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 transition">📖 Explicar</button>
+                                <button onclick="quickChatAction('review')" class="px-2.5 py-1.5 rounded-xl text-[10px] font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 transition">⚡ Revisar</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="relative">
+                                    <input type="file" id="chat-file" accept="image/*,.pdf,application/pdf" class="hidden" onchange="handleChatFile(this)">
+                                    <button onclick="toggleChatMenu()" title="Mais opções" class="bg-slate-100 dark:bg-slate-900 text-slate-500 hover:text-emerald-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 transition flex items-center justify-center">
+                                        <i data-lucide="plus" class="w-4 h-4"></i>
+                                    </button>
+                                    <div id="chat-menu" class="hidden absolute bottom-full mb-2 left-0 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1.5 z-30">
+                                        <button onclick="handleChatMenuPick('file')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                                            <i data-lucide="paperclip" class="w-4 h-4 text-emerald-600"></i> Imagem ou documento
+                                        </button>
+                                        <div class="h-px bg-slate-200 dark:bg-slate-800 my-1"></div>
+                                        <button onclick="handleChatMenuPick('quiz')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                                            <i data-lucide="help-circle" class="w-4 h-4 text-amber-500"></i> Criar quiz
+                                        </button>
+                                        <button onclick="handleChatMenuPick('explain')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                                            <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i> Explicar
+                                        </button>
+                                        <button onclick="handleChatMenuPick('review')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                                            <i data-lucide="zap" class="w-4 h-4 text-rose-500"></i> Revisar
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="relative flex-1">
+                                    <span id="chat-mode-badge" class="hidden absolute top-2 left-3 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-lg pointer-events-none"></span>
+                                    <textarea id="chat-input" rows="1" onkeydown="handleChatKey(event)" placeholder="Digite a sua dúvida (ex: como funciona a 2ª chamada)..." class="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-950 focus:outline-none focus:border-emerald-500 transition resize-none max-h-32"></textarea>
+                                </div>
+                                <button id="chat-send-btn" onclick="sendChatMessage()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl transition flex items-center justify-center">
+                                    <i data-lucide="send" id="chat-send-icon" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>

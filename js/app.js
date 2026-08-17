@@ -28,6 +28,74 @@ import {
 } from './supabaseClient.js';
 
 import { askGeminiTutor } from './aiTutor.js';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+import { createHighlighter } from 'shiki';
+
+let highlighter = null;
+let highlighterReady = false;
+
+async function ensureHighlighter() {
+    if (highlighterReady) return;
+    try {
+        highlighter = await createHighlighter({
+            themes: ['github-dark', 'github-light'],
+            langs: ['javascript', 'typescript', 'html', 'css', 'python', 'json', 'bash', 'sql']
+        });
+        highlighterReady = true;
+    } catch (e) {
+        console.warn('Shiki não pôde ser inicializado:', e);
+    }
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderKatexBlocks(text) {
+    const blocks = [];
+    const placeholder = (m) => {
+        const i = blocks.length;
+        blocks.push(m);
+        return `@@KATEX${i}@@`;
+    };
+    let out = text
+        .replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => placeholder({ expr: expr.trim(), block: true }))
+        .replace(/\$([^$\n]+?)\$/g, (m, expr) => placeholder({ expr: expr.trim(), block: false }));
+    blocks.forEach((b, i) => {
+        const html = b.block
+            ? `<div class="katex-block my-2 overflow-x-auto">${katex.renderToString(b.expr, { displayMode: true, throwOnError: false })}</div>`
+            : `<span class="katex-inline">${katex.renderToString(b.expr, { displayMode: false, throwOnError: false })}</span>`;
+        out = out.replace(`@@KATEX${i}@@`, html);
+    });
+    return out;
+}
+
+async function renderMarkdown(text) {
+    const rawHtml = marked.parse(text);
+    const withKatex = renderKatexBlocks(rawHtml);
+
+    const template = document.createElement('template');
+    template.innerHTML = withKatex;
+    const codeBlocks = template.content.querySelectorAll('pre code');
+    for (const codeEl of codeBlocks) {
+        const lang = (codeEl.className.match(/language-(\w+)/) || [])[1] || 'text';
+        const code = codeEl.textContent || '';
+        if (highlighter) {
+            const theme = (appState.theme === 'dark') ? 'github-dark' : 'github-light';
+            const html = highlighter.codeToHtml(code, { lang, theme });
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            codeEl.parentElement.replaceWith(wrapper.firstElementChild);
+        } else {
+            codeEl.parentElement.className = 'bg-slate-900 dark:bg-black rounded-xl p-3 my-2 overflow-x-auto text-[11px] font-mono';
+        }
+    }
+
+    return DOMPurify.sanitize(template.innerHTML, { ADD_ATTR: ['target'] });
+}
 
 // --- ESTADO GLOBAL LOCAL ---
 let appState = {
@@ -218,22 +286,31 @@ function changeTab(tabName) {
 
     if (window.innerWidth < 768) {
         const sidebar = document.getElementById('sidebar');
-        if (!sidebar.classList.contains('hidden')) toggleMobileSidebar();
+        if (!sidebar.classList.contains('-translate-x-full')) toggleMobileSidebar();
     }
 }
 
 function toggleMobileSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('mobile-overlay');
+    const isOpen = !sidebar.classList.contains('-translate-x-full');
 
-    if (sidebar.classList.contains('hidden')) {
+    if (!isOpen) {
         sidebar.classList.remove('hidden');
         sidebar.classList.add('fixed', 'inset-y-0', 'left-0');
+        void sidebar.offsetWidth;
+        sidebar.classList.remove('-translate-x-full');
         overlay.classList.remove('hidden');
+        void overlay.offsetWidth;
+        overlay.classList.remove('opacity-0');
     } else {
-        sidebar.classList.add('hidden');
-        sidebar.classList.remove('fixed', 'inset-y-0', 'left-0');
-        overlay.classList.add('hidden');
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('opacity-0');
+        setTimeout(() => {
+            sidebar.classList.add('hidden');
+            overlay.classList.add('hidden');
+            sidebar.classList.remove('fixed', 'inset-y-0', 'left-0');
+        }, 300);
     }
 }
 
@@ -737,8 +814,10 @@ function renderPerformanceChart() {
 function simPerformance() {
     const b1 = parseFloat(document.getElementById('sim-b1').value) || 0;
     const b2 = parseFloat(document.getElementById('sim-b2').value) || 0;
+    const b3 = parseFloat(document.getElementById('sim-b3').value) || 0;
+    const b4 = parseFloat(document.getElementById('sim-b4').value) || 0;
 
-    const finalAvg = (b1 + b2) / 2;
+    const finalAvg = (b1 + b2 + b3 + b4) / 4;
     document.getElementById('sim-result').innerText = finalAvg.toFixed(2);
 
     const status = document.getElementById('sim-status-label');
@@ -751,29 +830,255 @@ function simPerformance() {
     }
 }
 
-// --- TUTOR VIRTUAL IA GEMINI ---
-async function sendChatMessage() {
-    const input = document.getElementById('chat-input');
-    const userMsg = input.value.trim();
-    if (!userMsg) return;
+// --- TUTOR VIRTUAL IA GROQ ---
+let chatAttachment = null;
+let chatAbortController = null;
+let chatHistory = [];
+let chatMode = null;
 
-    input.value = '';
-    appendChatMessage(userMsg, 'user');
-
-    const typing = document.getElementById('ai-typing');
-    typing.classList.remove('hidden');
-
-    try {
-        const response = await askGeminiTutor(userMsg, import.meta.env.VITE_GROQ_API_KEY || '');
-        appendChatMessage(response, 'ai');
-    } catch (err) {
-        appendChatMessage("Desculpe, ocorreu um erro de conexão com o Tutor Virtual.", 'ai');
-    } finally {
-        typing.classList.add('hidden');
+function handleChatKey(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+        return;
+    }
+    if (event.key === 'Enter' && event.shiftKey) {
+        autoResizeChatInput();
     }
 }
 
-function appendChatMessage(text, sender) {
+function toggleChatMenu() {
+    const menu = document.getElementById('chat-menu');
+    menu.classList.toggle('hidden');
+}
+
+function handleChatMenuPick(option) {
+    const menu = document.getElementById('chat-menu');
+    menu.classList.add('hidden');
+    if (option === 'file') {
+        document.getElementById('chat-file').click();
+    } else if (option === 'quiz' || option === 'explain' || option === 'review') {
+        const modes = {
+            quiz: { label: 'Criar quiz', prompt: 'Crie um quiz sobre o seguinte conteúdo. Se o estudante não especificar a quantidade, gere 10 questões:' },
+            explain: { label: 'Explicar', prompt: 'Explique de forma simples, com exemplos e analogias:' },
+            review: { label: 'Revisar', prompt: 'Faça uma revisão rápida com perguntas objetivas sobre:' }
+        };
+        setChatMode(option, modes[option]);
+        document.getElementById('chat-input').focus();
+    }
+}
+
+function setChatMode(mode, info) {
+    chatMode = { key: mode, ...info };
+    const input = document.getElementById('chat-input');
+    const badge = document.getElementById('chat-mode-badge');
+    badge.textContent = info.label;
+    badge.classList.remove('hidden');
+
+    const styles = {
+        quiz: { border: 'border-amber-500', text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40' },
+        explain: { border: 'border-blue-500', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/40' },
+        review: { border: 'border-rose-500', text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-950/40' }
+    };
+    const s = styles[mode] || styles.quiz;
+
+    input.classList.remove('border-slate-200', 'dark:border-slate-800', 'border-emerald-500');
+    input.classList.add('border-2', s.border);
+    input.style.paddingTop = '1.7rem';
+
+    badge.classList.remove('text-amber-600', 'dark:text-amber-400', 'text-blue-600', 'dark:text-blue-400', 'text-rose-600', 'dark:text-rose-400');
+    badge.classList.add(s.text, s.bg);
+}
+
+function clearChatMode() {
+    chatMode = null;
+    const input = document.getElementById('chat-input');
+    const badge = document.getElementById('chat-mode-badge');
+    input.classList.remove('border-2', 'border-amber-500', 'border-blue-500', 'border-rose-500');
+    input.classList.add('border', 'border-slate-200', 'dark:border-slate-800');
+    input.style.paddingTop = '';
+    badge.classList.add('hidden');
+}
+
+function autoResizeChatInput() {
+    const ta = document.getElementById('chat-input');
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 128) + 'px';
+}
+
+function handleChatFile(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPdf && !isImage) {
+        showToast('Anexe apenas imagens (JPG/PNG) ou PDF.');
+        input.value = '';
+        return;
+    }
+
+    if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            chatAttachment = { type: 'image', name: file.name, data: e.target.result };
+            showChatAttachment(chatAttachment);
+            lucideRefresh();
+        };
+        reader.readAsDataURL(file);
+    } else {
+        showToast('Processando PDF...');
+        extractPdfText(file).then(async (text) => {
+            if (!text || text.trim().length < 40) {
+                showToast('PDF escaneado detectado: usando visão para ler...');
+                const dataUrl = await renderPdfPageAsImage(file);
+                chatAttachment = { type: 'image', name: file.name, data: dataUrl };
+            } else {
+                chatAttachment = { type: 'pdf', name: file.name, text: text };
+            }
+            showChatAttachment(chatAttachment);
+            lucideRefresh();
+        }).catch(() => {
+            showToast('Não foi possível extrair o texto do PDF.');
+            input.value = '';
+        });
+    }
+}
+
+async function extractPdfText(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    const maxPages = Math.min(pdf.numPages, 20);
+    for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text.slice(0, 6000);
+}
+
+async function renderPdfPageAsImage(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+function showChatAttachment(attachment) {
+    document.getElementById('chat-attach-name').textContent = attachment.name;
+    document.getElementById('chat-attach-preview').classList.remove('hidden');
+    document.getElementById('chat-quick-actions').classList.remove('hidden');
+}
+
+function removeChatAttachment() {
+    chatAttachment = null;
+    document.getElementById('chat-attach-preview').classList.add('hidden');
+    document.getElementById('chat-quick-actions').classList.add('hidden');
+    const fileInput = document.getElementById('chat-file');
+    if (fileInput) fileInput.value = '';
+    lucideRefresh();
+}
+
+function quickChatAction(action) {
+    if (!chatAttachment) return;
+    const prompts = {
+        summary: 'Faça um resumo organizado deste documento, com tópicos e pontos-chave.',
+        quiz: 'Crie um quiz com 5 perguntas sobre este documento. Apresente uma por vez e aguarde minha resposta.',
+        explain: 'Explique este documento de forma simples, como se eu estivesse começando a estudar o assunto.',
+        review: 'Faça uma revisão rápida sobre o conteúdo deste documento, com perguntas objetivas.'
+    };
+    const prompt = prompts[action];
+    if (!prompt) return;
+    const input = document.getElementById('chat-input');
+    input.value = prompt;
+    autoResizeChatInput();
+    sendChatMessage();
+}
+
+function lucideRefresh() {
+    if (window.lucide) lucide.createIcons();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const userMsg = input.value.trim();
+
+    if (!userMsg && !chatAttachment) return;
+    if (chatAttachment?.type === 'pdf' && !userMsg) {
+        showToast('Para analisar o PDF, adicione a sua dúvida junto.');
+        return;
+    }
+
+    chatAbortController = new AbortController();
+
+    const modePrompt = chatMode ? `${chatMode.prompt} ${userMsg}` : userMsg;
+    const sentMsg = (chatMode ? `[${chatMode.label}] ` : '') + userMsg + (chatAttachment ? `\n\n[Anexo: ${chatAttachment.name}]` : '');
+    input.value = '';
+    input.style.height = 'auto';
+    appendChatMessage(sentMsg, 'user');
+
+    const typing = document.getElementById('ai-typing');
+    typing.classList.remove('hidden');
+    setChatStopBtnVisible(true);
+
+    try {
+        const historyForAi = chatHistory.slice(-12).map(m => ({ role: m.role, content: m.content }));
+        const response = await askGeminiTutor(modePrompt, import.meta.env.VITE_GROQ_API_KEY || '', chatAttachment, chatAbortController.signal, historyForAi);
+        chatHistory.push({ role: 'user', content: sentMsg });
+        chatHistory.push({ role: 'assistant', content: response });
+        await ensureHighlighter();
+        const html = await renderMarkdown(response);
+        appendChatMessage(html, 'ai', true);
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            appendChatMessage("_Geração interrompida._", 'ai', true);
+        } else {
+            appendChatMessage("Desculpe, ocorreu um erro de conexão com o Tutor Virtual.", 'ai');
+        }
+    } finally {
+        typing.classList.add('hidden');
+        setChatStopBtnVisible(false);
+        chatAbortController = null;
+        removeChatAttachment();
+        clearChatMode();
+    }
+}
+
+function setChatStopBtnVisible(visible) {
+    const btn = document.getElementById('chat-send-btn');
+    const icon = document.getElementById('chat-send-icon');
+    if (!btn) return;
+    if (visible) {
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+        btn.classList.add('bg-rose-500', 'hover:bg-rose-600');
+        btn.onclick = stopChatGeneration;
+        btn.title = 'Parar geração';
+        icon.setAttribute('data-lucide', 'square');
+    } else {
+        btn.classList.remove('bg-rose-500', 'hover:bg-rose-600');
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+        btn.onclick = sendChatMessage;
+        btn.title = 'Enviar';
+        icon.setAttribute('data-lucide', 'send');
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+function stopChatGeneration() {
+    if (chatAbortController) {
+        chatAbortController.abort();
+    }
+}
+
+function appendChatMessage(text, sender, isHtml = false) {
     const chatBox = document.getElementById('chat-box');
     const wrapper = document.createElement('div');
     wrapper.className = `flex gap-3 max-w-xl ${sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`;
@@ -788,7 +1093,7 @@ function appendChatMessage(text, sender) {
         </div>
         <div class="${bg} rounded-2xl p-4 text-xs shadow-xs">
             <p class="font-bold text-[9px] opacity-75 mb-1">${senderName}</p>
-            <p class="leading-relaxed whitespace-pre-wrap">${text}</p>
+            <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
         </div>
     `;
 
@@ -797,6 +1102,7 @@ function appendChatMessage(text, sender) {
 }
 
 function clearChat() {
+    chatHistory = [];
     const box = document.getElementById('chat-box');
     box.innerHTML = `
         <div class="flex gap-3 max-w-xl">
@@ -998,10 +1304,25 @@ window.setMaterialFilter = setMaterialFilter;
 window.simPerformance = simPerformance;
 window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
+window.handleChatFile = handleChatFile;
+window.removeChatAttachment = removeChatAttachment;
+window.quickChatAction = quickChatAction;
+window.stopChatGeneration = stopChatGeneration;
+window.handleChatKey = handleChatKey;
+window.toggleChatMenu = toggleChatMenu;
+window.handleChatMenuPick = handleChatMenuPick;
+window.clearChatMode = clearChatMode;
 window.toggleNotifDropdown = toggleNotifDropdown;
 window.clearAllNotifications = clearAllNotifications;
 window.togglePomo = togglePomo;
 window.resetPomo = resetPomo;
+
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('chat-menu');
+    if (menu && !menu.classList.contains('hidden') && !e.target.closest('#chat-menu') && !e.target.closest('[onclick="toggleChatMenu()"]')) {
+        menu.classList.add('hidden');
+    }
+});
 
 // Inicialização ao carregar o DOM
 document.addEventListener('DOMContentLoaded', boot);
