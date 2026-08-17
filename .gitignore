@@ -17,3 +17,4 @@ dist
 *.bak.html
 *.docx
 Thumbs.dbindex (1).html
+.env*.local
