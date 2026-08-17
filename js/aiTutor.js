@@ -83,66 +83,76 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
     if (!query && !attachment) return '';
     const hasApi = apiKey && apiKey.trim().length > 10;
 
-    // Se houver chave API fornecida, tenta chamar diretamente o endpoint GROQ
     if (hasApi) {
-        try {
-            const url = 'https://api.groq.com/openai/v1/chat/completions';
-            const isImage = attachment?.type === 'image';
+        const url = 'https://api.groq.com/openai/v1/chat/completions';
+        const isImage = attachment?.type === 'image';
+        const textModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'];
+        const visionModels = ['qwen/qwen3.6-27b', 'groq/compound'];
+        const models = isImage ? visionModels : textModels;
 
-            let userContent;
-            if (isImage) {
-                userContent = [
-                    { type: 'text', text: query || 'Analise esta imagem e responda sobre o que ela contém.' },
-                    { type: 'image_url', image_url: { url: attachment.data } }
-                ];
-            } else if (attachment?.type === 'pdf') {
-                userContent = `${query}\n\n[Conteúdo extraído do documento anexado]:\n${attachment.text}`;
-            } else {
-                userContent = query;
+        let userContent;
+        if (isImage) {
+            userContent = [
+                { type: 'text', text: query || 'Analise esta imagem e responda sobre o que ela contém.' },
+                { type: 'image_url', image_url: { url: attachment.data } }
+            ];
+        } else if (attachment?.type === 'pdf') {
+            userContent = `${query}\n\n[Conteúdo extraído do documento anexado]:\n${attachment.text}`;
+        } else {
+            userContent = query;
+        }
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+            for (const model of models) {
+                try {
+                    const payload = {
+                        model,
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            ...history,
+                            { role: 'user', content: userContent }
+                        ]
+                    };
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey.trim()}`
+                        },
+                        body: JSON.stringify(payload),
+                        signal
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const text = data.choices?.[0]?.message?.content;
+                        if (text) return text;
+                        continue;
+                    }
+
+                    const status = response.status;
+                    if (status === 429 || status === 500 || status === 503) {
+                        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+                        continue;
+                    }
+                } catch (err) {
+                    if (err.name === 'AbortError') throw err;
+                    console.warn(`Falha com modelo ${model}, tentando próximo:`, err);
+                }
             }
-
-            const payload = {
-                model: isImage ? 'qwen/qwen3.6-27b' : 'openai/gpt-oss-120b',
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    ...history,
-                    { role: 'user', content: userContent }
-                ]
-            };
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey.trim()}`
-                },
-                body: JSON.stringify(payload),
-                signal
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const text = data.choices?.[0]?.message?.content;
-                if (text) return text;
-            }
-        } catch (err) {
-            if (err.name === 'AbortError') throw err;
-            console.warn('Falha na resposta da API GROQ, recorrendo à inteligência local:', err);
         }
     }
 
-    // PDFs têm o texto extraído anexado como contexto; imagens caem na resposta local
     if (attachment?.type === 'pdf') {
         return getLocalPdfResponse(query, attachment.text);
     }
 
-    // Resposta Baseada em Conhecimento Acadêmico do IFAL (Inteligência Embutida)
     return getLocalTutorResponse(query);
 }
 
 function getLocalPdfResponse(query, pdfText) {
-    const preview = String(pdfText || '').slice(0, 1500);
-    return `📄 **Conteúdo do PDF analisado**:\n\n${preview}\n\nPergunte sobre o documento acima e, se possível, refine com a sua dúvida.`;
+    return "⚠️ **Não consegui acessar a IA agora** (a API de IA está sobrecarregada no momento).\n\nEnvie sua pergunta novamente em alguns instantes — tentarei automaticamente outros modelos de IA para analisar seu documento.";
 }
 
 function getLocalTutorResponse(query) {
