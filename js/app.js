@@ -138,7 +138,7 @@ let authMode = 'login';
 
 async function boot() {
     applyStoredTheme();
-    const yearEl = document.getElementById('landing-year');
+    const yearEl = document.getElementById('auth-year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
     try {
         const user = await apiGetCurrentUser();
@@ -146,31 +146,16 @@ async function boot() {
         showApp();
         await initApp();
     } catch (e) {
-        showLandingScreen();
+        showAuthScreen();
     }
 }
 
-function showLandingScreen() {
-    document.getElementById('landing-screen').classList.remove('hidden');
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app-shell').classList.add('hidden');
-    if (window.lucide) lucide.createIcons();
-}
-
 function showAuthScreen() {
-    document.getElementById('landing-screen').classList.add('hidden');
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app-shell').classList.add('hidden');
-    if (window.lucide) lucide.createIcons();
-}
-
-function openAuth(mode) {
-    setAuthMode(mode);
-    showAuthScreen();
 }
 
 function showApp() {
-    document.getElementById('landing-screen').classList.add('hidden');
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app-shell').classList.remove('hidden');
 }
@@ -1310,9 +1295,6 @@ function setHeaderDate() {
 window.toggleAuthMode = toggleAuthMode;
 window.submitAuthForm = submitAuthForm;
 window.doLogout = doLogout;
-window.showLandingScreen = showLandingScreen;
-window.showAuthScreen = showAuthScreen;
-window.openAuth = openAuth;
 window.changeTab = changeTab;
 window.toggleMobileSidebar = toggleMobileSidebar;
 window.toggleDarkMode = toggleDarkMode;
