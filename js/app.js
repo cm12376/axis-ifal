@@ -993,24 +993,14 @@ async function renderPdfPageAsImage(file) {
 function showChatAttachment(attachment) {
     document.getElementById('chat-attach-name').textContent = attachment.name;
     document.getElementById('chat-attach-preview').classList.remove('hidden');
-    document.getElementById('chat-quick-actions').classList.remove('hidden');
 }
 
 function removeChatAttachment() {
     chatAttachment = null;
     document.getElementById('chat-attach-preview').classList.add('hidden');
-    document.getElementById('chat-quick-actions').classList.add('hidden');
     const fileInput = document.getElementById('chat-file');
     if (fileInput) fileInput.value = '';
     lucideRefresh();
-}
-
-function quickChatAction(action) {
-    if (!chatAttachment) return;
-    const info = CHAT_MODES[action];
-    if (!info) return;
-    setChatMode(action, info);
-    document.getElementById('chat-input').focus();
 }
 
 function lucideRefresh() {
@@ -1319,7 +1309,6 @@ window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
 window.handleChatFile = handleChatFile;
 window.removeChatAttachment = removeChatAttachment;
-window.quickChatAction = quickChatAction;
 window.stopChatGeneration = stopChatGeneration;
 window.handleChatKey = handleChatKey;
 window.toggleChatMenu = toggleChatMenu;
