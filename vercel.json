@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/auth/:path*", "destination": "/api/auth" },
+    { "source": "/api/tasks/:path*", "destination": "/api/tasks" },
+    { "source": "/api/events/:path*", "destination": "/api/events" },
+    { "source": "/api/materials/:path*", "destination": "/api/materials" },
+    { "source": "/api/notifications/:path*", "destination": "/api/notifications" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "trailingSlash": false

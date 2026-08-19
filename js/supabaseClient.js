@@ -23,7 +23,8 @@ function getLocalData() {
         events: [],
         materials: [],
         notifications: [],
-        grades: []
+        grades: [],
+        pomodoroSessions: []
     };
     localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(defaultState));
     return defaultState;
@@ -212,6 +213,25 @@ export async function apiClearNotifications() {
 export async function apiFetchGrades() {
     try { return await request('/grades'); }
     catch (e) { if (e.status === 401) throw e; return getLocalData().grades; }
+}
+
+// --- MÉTRICAS DE ESTUDO (SESSÕES DE POMODORO) ---
+export async function apiFetchPomodoroSessions() {
+    try { return await request('/pomodoro'); }
+    catch (e) { if (e.status === 401) throw e; return getLocalData().pomodoroSessions || []; }
+}
+
+export async function apiLogPomodoroSession(category, minutes) {
+    try {
+        return await request('/pomodoro', { method: 'POST', body: JSON.stringify({ category, minutes }) });
+    } catch (e) {
+        const local = getLocalData();
+        const session = { id: String(Date.now()), category, minutes, session_date: new Date().toISOString().slice(0, 10) };
+        local.pomodoroSessions = local.pomodoroSessions || [];
+        local.pomodoroSessions.unshift(session);
+        saveLocalData(local);
+        return session;
+    }
 }
 
 // --- PERFIL ---

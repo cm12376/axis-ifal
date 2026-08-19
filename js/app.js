@@ -24,7 +24,9 @@ import {
     apiClearNotifications,
     apiFetchGrades,
     apiFetchProfile,
-    apiUpdateProfile
+    apiUpdateProfile,
+    apiFetchPomodoroSessions,
+    apiLogPomodoroSession
 } from './supabaseClient.js';
 
 import { askGeminiTutor } from './aiTutor.js';
@@ -120,10 +122,19 @@ let appState = {
     events: [],
     materials: [],
     notifications: [],
-    grades: []
+    grades: [],
+    pomodoroSessions: []
+};
+
+const CATEGORY_LABELS = {
+    algoritmos: 'Introdução a Algoritmos',
+    web: 'Desenvolvimento Web I',
+    bd: 'Banco de Dados (PostgreSQL)'
 };
 
 let perfChartInstance = null;
+let metricsSubjectChartInstance = null;
+let metricsDailyChartInstance = null;
 let currentMaterialFilter = 'todos';
 let calCurrentYear = new Date().getFullYear();
 let calCurrentMonth = new Date().getMonth();
@@ -138,6 +149,8 @@ let authMode = 'login';
 
 async function boot() {
     applyStoredTheme();
+    const yearEl = document.getElementById('auth-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
     try {
         const user = await apiGetCurrentUser();
         appState.user.name = user.full_name;
@@ -211,7 +224,7 @@ async function doLogout() {
     appState = {
         theme: appState.theme,
         user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Maceió' },
-        tasks: [], events: [], materials: [], notifications: [], grades: []
+        tasks: [], events: [], materials: [], notifications: [], grades: [], pomodoroSessions: []
     };
     setAuthMode('login');
     showAuthScreen();
@@ -224,13 +237,14 @@ async function initApp() {
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
-        const [tasks, events, materials, notifications, grades, profile] = await Promise.all([
+        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions] = await Promise.all([
             apiFetchTasks(),
             apiFetchEvents(),
             apiFetchMaterials(),
             apiFetchNotifications(),
             apiFetchGrades(),
-            apiFetchProfile()
+            apiFetchProfile(),
+            apiFetchPomodoroSessions()
         ]);
 
         appState.tasks = tasks || [];
@@ -238,7 +252,8 @@ async function initApp() {
         appState.materials = materials || [];
         appState.notifications = notifications || [];
         appState.grades = grades || [];
-        
+        appState.pomodoroSessions = pomodoroSessions || [];
+
         if (profile && profile.full_name) {
             appState.user.name = profile.full_name;
         }
@@ -297,6 +312,10 @@ function changeTab(tabName) {
 
     if (tabName === 'performance') {
         renderPerformanceChart();
+    }
+
+    if (tabName === 'metrics') {
+        renderMetricsTab();
     }
 
     if (window.innerWidth < 768) {
@@ -826,6 +845,126 @@ function renderPerformanceChart() {
     }
 }
 
+// --- RENDERIZAÇÃO DAS MÉTRICAS DE ESTUDO (POMODORO) ---
+function renderMetricsTab() {
+    const sessions = appState.pomodoroSessions || [];
+    const totalMinutes = sessions.reduce((sum, s) => sum + Number(s.minutes || 0), 0);
+
+    document.getElementById('metrics-total-hours').innerText = (totalMinutes / 60).toFixed(1);
+    document.getElementById('metrics-session-count').innerText = sessions.length;
+    document.getElementById('metrics-streak').innerText = computeStudyStreak(sessions);
+
+    renderMetricsSubjectChart(sessions);
+    renderMetricsDailyChart(sessions);
+}
+
+function computeStudyStreak(sessions) {
+    const dates = new Set(sessions.map(s => String(s.session_date || s.date || '').slice(0, 10)));
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    if (!dates.has(cursor.toISOString().slice(0, 10))) {
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    let streak = 0;
+    while (dates.has(cursor.toISOString().slice(0, 10))) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+}
+
+function renderMetricsSubjectChart(sessions) {
+    const canvas = document.getElementById('chart-metrics-subject');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (metricsSubjectChartInstance) metricsSubjectChartInstance.destroy();
+
+    const totals = {};
+    sessions.forEach(s => {
+        const cat = s.category || 'geral';
+        totals[cat] = (totals[cat] || 0) + Number(s.minutes || 0);
+    });
+    const categories = Object.keys(totals);
+    const labels = categories.map(c => CATEGORY_LABELS[c] || c);
+    const data = categories.map(c => Number((totals[c] / 60).toFixed(2)));
+
+    if (window.Chart) {
+        metricsSubjectChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.length ? labels : ['Sem sessões ainda'],
+                datasets: [{
+                    label: 'Horas estudadas',
+                    data: data.length ? data : [0],
+                    backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                    borderColor: '#10b981',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: { beginAtZero: true, grid: { color: 'rgba(150, 150, 150, 0.1)' } },
+                    y: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+}
+
+function renderMetricsDailyChart(sessions) {
+    const canvas = document.getElementById('chart-metrics-daily');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (metricsDailyChartInstance) metricsDailyChartInstance.destroy();
+
+    const days = [];
+    const totalsByDay = {};
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        days.push(key);
+        totalsByDay[key] = 0;
+    }
+    sessions.forEach(s => {
+        const key = String(s.session_date || s.date || '').slice(0, 10);
+        if (key in totalsByDay) totalsByDay[key] += Number(s.minutes || 0);
+    });
+    const labels = days.map(d => formatDateDisplay(d));
+    const data = days.map(d => totalsByDay[d]);
+
+    if (window.Chart) {
+        metricsDailyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Minutos estudados',
+                    data,
+                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(150, 150, 150, 0.1)' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+}
+
 function simPerformance() {
     const b1 = parseFloat(document.getElementById('sim-b1').value) || 0;
     const b2 = parseFloat(document.getElementById('sim-b2').value) || 0;
@@ -1193,6 +1332,7 @@ function togglePomo() {
                 playSyntheticBeep();
 
                 if (pomoCurrentMode === 'foco') {
+                    logPomodoroSession(25);
                     showToast("Sessão de Foco concluída! Pausa de 5 minutos.");
                     pomoCurrentMode = 'pausa';
                     pomoTime = 5 * 60;
@@ -1243,6 +1383,17 @@ function playSyntheticBeep() {
         osc.start();
         osc.stop(audioCtx.currentTime + 0.5);
     } catch (e) {}
+}
+
+async function logPomodoroSession(minutes) {
+    const categorySelect = document.getElementById('pomo-category');
+    const category = categorySelect ? categorySelect.value : 'geral';
+    const session = await apiLogPomodoroSession(category, minutes);
+    appState.pomodoroSessions.unshift(session);
+    const metricsTab = document.getElementById('tab-metrics');
+    if (metricsTab && !metricsTab.classList.contains('hidden')) {
+        renderMetricsTab();
+    }
 }
 
 // --- SISTEMA DE TOAST ALERTS ---
