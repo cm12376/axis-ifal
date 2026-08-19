@@ -40,17 +40,137 @@
 </head>
 <body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-50 flex flex-col overflow-hidden">
 
+    <!-- LANDING PAGE -->
+    <div id="landing-screen" class="h-full w-full overflow-y-auto bg-white dark:bg-slate-950 text-slate-950 dark:text-slate-50">
+
+        <!-- Navbar -->
+        <header class="sticky top-0 z-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+            <div class="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="bg-emerald-600 p-2 rounded-xl text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
+                        <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-extrabold text-sm tracking-wider text-emerald-600 dark:text-emerald-400">AXIS IFAL</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition" title="Alternar Tema">
+                        <i data-lucide="sun" class="w-4.5 h-4.5 hidden dark:block"></i>
+                        <i data-lucide="moon" class="w-4.5 h-4.5 block dark:hidden"></i>
+                    </button>
+                    <button onclick="openAuth('login')" class="px-3.5 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition">Entrar</button>
+                    <button onclick="openAuth('register')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-600/20">Criar Conta</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero -->
+        <section class="relative bg-gradient-to-br from-slate-900 to-emerald-950 text-white overflow-hidden">
+            <div class="absolute right-0 top-0 opacity-10 pointer-events-none">
+                <i data-lucide="sparkles" class="w-[28rem] h-[28rem]"></i>
+            </div>
+            <div class="relative z-10 max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-24 flex flex-col items-start gap-5 max-w-2xl">
+                <span class="inline-block bg-white/15 backdrop-blur-md text-emerald-300 text-[10px] font-bold px-3 py-1 rounded-full border border-white/10 uppercase tracking-widest">Instituto Federal de Alagoas</span>
+                <h1 class="text-3xl md:text-5xl font-black leading-tight">Sua vida acadêmica no IFAL, organizada em um só lugar.</h1>
+                <p class="text-slate-200 text-sm md:text-base leading-relaxed">
+                    A Plataforma Axis reúne quadro Kanban de estudos, calendário acadêmico, pasta de materiais, simulador de notas, timer Pomodoro e um Tutor Virtual com IA para apoiar a sua jornada como estudante do IFAL.
+                </p>
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <button onclick="openAuth('register')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm px-5 py-3 rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/25">
+                        <i data-lucide="rocket" class="w-4 h-4"></i> Começar Agora
+                    </button>
+                    <button onclick="openAuth('login')" class="bg-white/10 hover:bg-white/15 text-white font-semibold text-sm px-5 py-3 rounded-xl transition flex items-center gap-2 border border-white/10">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Já tenho conta
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Funcionalidades -->
+        <section class="max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-20">
+            <div class="text-center max-w-xl mx-auto mb-12">
+                <h2 class="text-2xl md:text-3xl font-black">Tudo o que você precisa para estudar melhor</h2>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mt-3">Funcionalidades integradas pensadas para a rotina do estudante do IFAL.</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition">
+                    <div class="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl w-fit mb-4">
+                        <i data-lucide="trello" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-sm mb-1.5">Quadro Kanban de Tarefas</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Organize suas tarefas por estado — Por Fazer, Em Progresso e Concluído — com níveis de urgência e prazos.</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition">
+                    <div class="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl w-fit mb-4">
+                        <i data-lucide="calendar" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-sm mb-1.5">Calendário Acadêmico</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Acompanhe provas, exames bimestrais, entregas de trabalhos e reuniões do PIBITI num só calendário.</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition">
+                    <div class="p-3 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl w-fit mb-4">
+                        <i data-lucide="cloud-lightning" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-sm mb-1.5">Pasta Digital de Materiais</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Guarde links de apostilas, slides e materiais por disciplina, com filtros rápidos de busca.</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition">
+                    <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl w-fit mb-4">
+                        <i data-lucide="line-chart" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-sm mb-1.5">Monitor & Simulador de Notas</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Calcule a média mínima (6.0) do IFAL e acompanhe a evolução das suas notas bimestrais em gráficos.</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition">
+                    <div class="p-3 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl w-fit mb-4">
+                        <i data-lucide="alarm-clock" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-sm mb-1.5">Timer Pomodoro Integrado</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Ciclos de 25 minutos de estudo com 5 de descanso, direto na barra lateral da plataforma.</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition">
+                    <div class="p-3 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 rounded-xl w-fit mb-4">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-sm mb-1.5">Tutor Virtual com IA</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Tire dúvidas sobre SIGAA, segunda chamada, limites de falta e auxílios institucionais do IFAL.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Final -->
+        <section class="bg-slate-50 dark:bg-slate-900/40 border-y border-slate-200 dark:border-slate-800">
+            <div class="max-w-4xl mx-auto px-4 md:px-6 py-14 text-center flex flex-col items-center gap-4">
+                <h2 class="text-2xl md:text-3xl font-black">Pronto para organizar sua vida acadêmica?</h2>
+                <p class="text-slate-500 dark:text-slate-400 text-sm max-w-lg">Crie sua conta gratuita e comece a usar a Plataforma Axis agora mesmo.</p>
+                <button onclick="openAuth('register')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-600/20">
+                    <i data-lucide="rocket" class="w-4 h-4"></i> Criar Conta Gratuita
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="max-w-6xl mx-auto px-4 md:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
+            <span>© <span id="landing-year"></span> Axis IFAL Digital — IFAL Campus Maceió</span>
+            <span>Plataforma de Orientação & Gestão Estudantil</span>
+        </footer>
+    </div>
+
     <!-- TELA DE LOGIN / REGISTO -->
-    <div id="auth-screen" class="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-emerald-950 p-4">
+    <div id="auth-screen" class="hidden h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-emerald-950 p-4">
         <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-sm w-full shadow-2xl p-8 border border-slate-200 dark:border-slate-800">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="bg-emerald-600 p-2.5 rounded-xl text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
-                    <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="bg-emerald-600 p-2.5 rounded-xl text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
+                        <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-sm leading-tight tracking-wider text-emerald-600 dark:text-emerald-400">AXIS IFAL</h1>
+                        <span class="text-[11px] text-slate-400">Gestão & Orientação</span>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="font-extrabold text-sm leading-tight tracking-wider text-emerald-600 dark:text-emerald-400">AXIS IFAL</h1>
-                    <span class="text-[11px] text-slate-400">Gestão & Orientação</span>
-                </div>
+                <button onclick="showLandingScreen()" title="Voltar" class="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
 
             <h2 id="auth-title" class="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-4">Entrar na Plataforma</h2>
