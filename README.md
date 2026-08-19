@@ -11,6 +11,7 @@ A **Plataforma Axis** é um sistema inteligente de apoio à orientação acadêm
 - 📁 **Pasta Digital de Materiais**: Armazenamento de links de apostilas, slides e materiais por disciplina com filtros rápidos.
 - 📊 **Monitor & Simulador de Notas**: Cálculo da média mínima (6.0) do IFAL e gráficos visuais de evolução de notas bimestrais (Chart.js).
 - ⏱️ **Timer Pomodoro Integrado**: Ciclos de 25 min de estudo com 5 min de descanso e sintetizador de som Web Audio API.
+- 📈 **Métricas de Estudo**: Tempo total em Pomodoro por disciplina, streak de dias consecutivos estudando e gráficos de produtividade (por disciplina e últimos 7 dias).
 - 🤖 **Tutor Virtual**: Assistente de IA que responde a dúvidas didáticas sobre o SIGAA, segunda chamada, limites de falta (75%) e auxílios institucionais.
 - 🔐 **Login e Senha**: Cada estudante cria a própria conta; tarefas, eventos, materiais, notas e notificações ficam isolados por usuário.
 - ⚡ **Banco de Dados Neon PostgreSQL**: Persistência em nuvem via funções serverless da Vercel, com fallback automático para modo LocalStorage quando offline.
@@ -29,7 +30,7 @@ A **Plataforma Axis** é um sistema inteligente de apoio à orientação acadêm
    ```bash
    node scripts/applySchema.mjs
    ```
-   Isso cria as tabelas `profiles` (contas de login), `sessions`, `tasks`, `events`, `materials`, `notifications` e `academic_grades`.
+   Isso cria as tabelas `profiles` (contas de login), `sessions`, `tasks`, `events`, `materials`, `notifications`, `academic_grades` e `pomodoro_sessions`.
 
 ### 3. Login e Registro
 1. Abra a aplicação Axis no navegador.

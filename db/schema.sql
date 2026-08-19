@@ -93,6 +93,16 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. SESSÕES DE POMODORO (métricas de estudo)
+CREATE TABLE IF NOT EXISTS public.pomodoro_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    category TEXT NOT NULL DEFAULT 'geral',
+    minutes INTEGER NOT NULL DEFAULT 25,
+    session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ÍNDICES
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON public.tasks(status);
@@ -103,3 +113,5 @@ CREATE INDEX IF NOT EXISTS idx_materials_user ON public.materials(user_id);
 CREATE INDEX IF NOT EXISTS idx_materials_category ON public.materials(category);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_grades_user ON public.academic_grades(user_id);
+CREATE INDEX IF NOT EXISTS idx_pomodoro_user ON public.pomodoro_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_pomodoro_date ON public.pomodoro_sessions(session_date);
