@@ -10,6 +10,7 @@ dist
 # Ambiente e segredos
 .env
 .env.*
+.env.local
 *.local
 
 # Backups e temporários

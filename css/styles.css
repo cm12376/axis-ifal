@@ -16,6 +16,32 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
+/* Background Gradients & Glows */
+.landing-gradient-bg {
+    background: radial-gradient(circle at 20% 15%, rgba(16, 185, 129, 0.15), transparent 45%),
+                radial-gradient(circle at 80% 80%, rgba(5, 150, 105, 0.12), transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1), rgba(2, 6, 23, 1));
+}
+
+.feature-card-glow {
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-card-glow:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 30px -10px rgba(16, 185, 129, 0.15);
+    border-color: rgba(52, 211, 153, 0.4);
+}
+
+.badge-glow {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.35);
+}
+
 /* Glassmorphism Effect */
 .glass {
     background: rgba(255, 255, 255, 0.85);

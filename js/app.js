@@ -151,6 +151,9 @@ async function boot() {
     applyStoredTheme();
     const yearEl = document.getElementById('auth-year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
+    const yearElFooter = document.getElementById('footer-year');
+    if (yearElFooter) yearElFooter.textContent = new Date().getFullYear();
+    if (window.lucide) lucide.createIcons();
     try {
         const user = await apiGetCurrentUser();
         appState.user.name = user.full_name;
@@ -164,6 +167,7 @@ async function boot() {
 function showAuthScreen() {
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app-shell').classList.add('hidden');
+    if (window.lucide) lucide.createIcons();
 }
 
 function showApp() {
@@ -174,16 +178,44 @@ function showApp() {
 function setAuthMode(mode) {
     authMode = mode;
     const isLogin = mode === 'login';
-    document.getElementById('auth-title').innerText = isLogin ? 'Entrar na Plataforma' : 'Criar Conta';
-    document.getElementById('auth-name-field').classList.toggle('hidden', isLogin);
-    document.getElementById('auth-submit-btn').innerText = isLogin ? 'Entrar' : 'Criar Conta';
-    document.getElementById('auth-toggle-text').innerText = isLogin ? 'Ainda não tem conta?' : 'Já tem conta?';
-    document.getElementById('auth-toggle-btn').innerText = isLogin ? 'Criar Conta' : 'Entrar';
-    document.getElementById('auth-error').classList.add('hidden');
+    const titleEl = document.getElementById('auth-title');
+    if (titleEl) titleEl.innerText = isLogin ? 'Entrar na Plataforma' : 'Criar Conta';
+    const nameField = document.getElementById('auth-name-field');
+    if (nameField) nameField.classList.toggle('hidden', isLogin);
+    const submitBtn = document.getElementById('auth-submit-btn');
+    if (submitBtn) submitBtn.innerText = isLogin ? 'Entrar' : 'Criar Conta';
+    const toggleText = document.getElementById('auth-toggle-text');
+    if (toggleText) toggleText.innerText = isLogin ? 'Ainda não tem conta?' : 'Já tem conta?';
+    const toggleBtn = document.getElementById('auth-toggle-btn');
+    if (toggleBtn) toggleBtn.innerText = isLogin ? 'Criar Conta' : 'Entrar';
+    const errorEl = document.getElementById('auth-error');
+    if (errorEl) errorEl.classList.add('hidden');
+    if (window.lucide) lucide.createIcons();
 }
 
 function toggleAuthMode() {
     setAuthMode(authMode === 'login' ? 'register' : 'login');
+}
+
+function scrollToAuth(mode) {
+    if (mode && authMode !== mode) {
+        setAuthMode(mode);
+    }
+    const el = document.getElementById('auth-card');
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+            const input = document.getElementById(authMode === 'register' ? 'auth-name' : 'auth-email');
+            if (input) input.focus();
+        }, 400);
+    }
+}
+
+function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 async function submitAuthForm() {
@@ -1469,6 +1501,8 @@ window.toggleNotifDropdown = toggleNotifDropdown;
 window.clearAllNotifications = clearAllNotifications;
 window.togglePomo = togglePomo;
 window.resetPomo = resetPomo;
+window.scrollToAuth = scrollToAuth;
+window.scrollToSection = scrollToSection;
 
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('chat-menu');
