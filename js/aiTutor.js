@@ -81,6 +81,43 @@ Exemplo: dado o código Python \`for i in range(10): print(i)\` sem os dois pont
 
 export async function askGeminiTutor(query, apiKey = '', attachment = null, signal = null, history = [], selectedModel = 'auto') {
     if (!query && !attachment) return '';
+
+    // Tenta primeiro o proxy server-side (chave segura em variável de ambiente)
+    try {
+        const payload = {
+            messages: [
+                ...history,
+                { role: 'user', content: query }
+            ],
+            attachment,
+            selectedModel
+        };
+
+        const res = await fetch('/api/tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+            signal
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.needsUserKey) {
+                // Servidor não tem GROQ_API_KEY configurada — cai no fluxo com chave do usuário
+            } else if (data.text) {
+                return data.text;
+            } else if (data.error) {
+                if (attachment?.type === 'pdf') return getLocalPdfResponse(query, attachment.text, data.error);
+                return getLocalTutorResponse(query, data.error);
+            }
+        }
+    } catch (err) {
+        if (err.name === 'AbortError') throw err;
+        // continua para o fluxo com chave do navegador
+    }
+
+    // Fallback: chave de API do usuário no navegador (localStorage)
     const hasApi = apiKey && apiKey.trim().length > 10;
 
     if (hasApi) {

@@ -23,11 +23,17 @@ import {
     apiMarkNotificationRead,
     apiClearNotifications,
     apiFetchGrades,
+    apiSaveGrade,
+    apiUpdateGrade,
+    apiDeleteGrade,
     apiFetchProfile,
     apiUpdateProfile,
     apiFetchPomodoroSessions,
-    apiLogPomodoroSession
-} from './supabaseClient.js';
+    apiLogPomodoroSession,
+    apiFetchChatHistory,
+    apiSaveChatMessage,
+    apiClearChatHistory
+} from './apiClient.js';
 
 import { askGeminiTutor } from './aiTutor.js';
 import { marked } from 'marked';
@@ -1243,6 +1249,8 @@ async function sendChatMessage() {
         const response = await askGeminiTutor(modePrompt, groqApiKey, chatAttachment, chatAbortController.signal, historyForAi, groqModel);
         chatHistory.push({ role: 'user', content: sentMsg });
         chatHistory.push({ role: 'assistant', content: response });
+        apiSaveChatMessage('user', sentMsg).catch(() => {});
+        apiSaveChatMessage('assistant', response).catch(() => {});
         await ensureHighlighter();
         const html = await renderMarkdown(response);
         appendChatMessage(html, 'ai', true);
@@ -1312,6 +1320,7 @@ function appendChatMessage(text, sender, isHtml = false) {
 
 function clearChat() {
     chatHistory = [];
+    apiClearChatHistory().catch(() => {});
     const box = document.getElementById('chat-box');
     box.innerHTML = `
         <div class="flex gap-3 max-w-xl">

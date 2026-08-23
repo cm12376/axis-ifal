@@ -17,5 +17,6 @@ dist
 *.bak
 *.bak.html
 *.docx
-Thumbs.dbindex (1).html
+Thumbs.db
+index (1).html
 .env*.local

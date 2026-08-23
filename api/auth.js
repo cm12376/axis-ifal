@@ -58,6 +58,7 @@ export default async function handler(req, res) {
 
         return fail(res, 'Rota não encontrada', 404);
     } catch (err) {
-        return fail(res, err.message);
+        console.error('auth error:', err);
+        return fail(res, 'Erro ao processar autenticação', 500);
     }
 }

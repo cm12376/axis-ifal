@@ -1,6 +1,6 @@
 // ==========================================
 // AXIS IFAL - CAMADA DE DADOS (NEON via API Vercel)
-// Substitui o Supabase por chamadas à nossa API serverless.
+// Cliente HTTP para a API serverless própria.
 // Mantém fallback LocalStorage em caso de falha.
 // ==========================================
 
@@ -213,6 +213,70 @@ export async function apiClearNotifications() {
 export async function apiFetchGrades() {
     try { return await request('/grades'); }
     catch (e) { if (e.status === 401) throw e; return getLocalData().grades; }
+}
+
+export async function apiSaveGrade(gradeData) {
+    try {
+        return await request('/grades', { method: 'POST', body: JSON.stringify({
+            subject: gradeData.subject, b1_grade: gradeData.b1_grade, b2_grade: gradeData.b2_grade
+        }) });
+    } catch (e) {
+        const local = getLocalData();
+        const g = { id: String(Date.now()), subject: gradeData.subject, b1_grade: gradeData.b1_grade, b2_grade: gradeData.b2_grade };
+        local.grades = local.grades || [];
+        local.grades.push(g);
+        saveLocalData(local);
+        return g;
+    }
+}
+
+export async function apiUpdateGrade(id, gradeData) {
+    try {
+        return await request(`/grades/${id}`, { method: 'PUT', body: JSON.stringify({
+            subject: gradeData.subject, b1_grade: gradeData.b1_grade, b2_grade: gradeData.b2_grade
+        }) });
+    } catch (e) {
+        const local = getLocalData();
+        const g = local.grades.find(i => String(i.id) === String(id));
+        if (g) {
+            g.subject = gradeData.subject ?? g.subject;
+            g.b1_grade = gradeData.b1_grade ?? g.b1_grade;
+            g.b2_grade = gradeData.b2_grade ?? g.b2_grade;
+            saveLocalData(local);
+        }
+        return g;
+    }
+}
+
+export async function apiDeleteGrade(id) {
+    try { await request(`/grades/${id}`, { method: 'DELETE' }); }
+    catch (e) {
+        const local = getLocalData();
+        local.grades = local.grades.filter(g => String(g.id) !== String(id));
+        saveLocalData(local);
+    }
+    return true;
+}
+
+// --- CHAT DO TUTOR IA ---
+export async function apiFetchChatHistory() {
+    try { return await request('/chat'); }
+    catch (e) { if (e.status === 401) throw e; return []; }
+}
+
+export async function apiSaveChatMessage(sender, message) {
+    try {
+        return await request('/chat', { method: 'POST', body: JSON.stringify({ sender, message }) });
+    } catch (e) {
+        if (e.status === 401) throw e;
+        return null;
+    }
+}
+
+export async function apiClearChatHistory() {
+    try { await request('/chat', { method: 'DELETE' }); }
+    catch (e) { if (e.status === 401) throw e; }
+    return true;
 }
 
 // --- MÉTRICAS DE ESTUDO (SESSÕES DE POMODORO) ---

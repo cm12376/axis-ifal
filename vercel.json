@@ -7,6 +7,11 @@
     { "source": "/api/events/:path*", "destination": "/api/events" },
     { "source": "/api/materials/:path*", "destination": "/api/materials" },
     { "source": "/api/notifications/:path*", "destination": "/api/notifications" },
+    { "source": "/api/tutor/:path*", "destination": "/api/tutor" },
+    { "source": "/api/chat/:path*", "destination": "/api/chat" },
+    { "source": "/api/grades/:path*", "destination": "/api/grades" },
+    { "source": "/api/pomodoro/:path*", "destination": "/api/pomodoro" },
+    { "source": "/api/profile/:path*", "destination": "/api/profile" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "trailingSlash": false

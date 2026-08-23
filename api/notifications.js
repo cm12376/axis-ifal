@@ -48,6 +48,7 @@ export default async function handler(req, res) {
                 return fail(res, 'Método não suportado', 405);
         }
     } catch (err) {
-        return fail(res, err.message);
+        console.error('notifications error:', err);
+        return fail(res, 'Erro ao processar notificação', 500);
     }
 }

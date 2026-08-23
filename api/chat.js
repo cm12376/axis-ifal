@@ -1,4 +1,4 @@
-// API de Sessões de Pomodoro / Métricas de Estudo (isolada por usuário autenticado)
+// API de Mensagens do Tutor IA (isolada por usuário autenticado)
 import { pool } from './_db.js';
 import { ok, fail, getBody } from './_helpers.js';
 import { requireAuth } from './_auth.js';
@@ -13,30 +13,31 @@ export default async function handler(req, res) {
         switch (method) {
             case 'GET': {
                 const result = await pool.query(
-                    'SELECT * FROM public.pomodoro_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 500',
+                    'SELECT id, sender, message, created_at FROM public.chat_messages WHERE user_id = $1 ORDER BY created_at ASC LIMIT 100',
                     [user.id]
                 );
                 return ok(res, result.rows);
             }
             case 'POST': {
                 const body = await getBody(req);
-                const { category = 'geral', minutes = 25 } = body;
-                const mins = Number(minutes);
-                if (!Number.isFinite(mins) || mins < 1 || mins > 120) {
-                    return fail(res, 'Duração inválida (1 a 120 minutos)', 400);
-                }
+                const { sender = 'user', message } = body;
+                if (!message) return fail(res, 'Mensagem obrigatória', 400);
                 const result = await pool.query(
-                    `INSERT INTO public.pomodoro_sessions (user_id, category, minutes)
+                    `INSERT INTO public.chat_messages (user_id, sender, message)
                      VALUES ($1, $2, $3) RETURNING *`,
-                    [user.id, category, mins]
+                    [user.id, sender, message]
                 );
                 return ok(res, result.rows[0], 201);
+            }
+            case 'DELETE': {
+                await pool.query('DELETE FROM public.chat_messages WHERE user_id = $1', [user.id]);
+                return ok(res, { success: true });
             }
             default:
                 return fail(res, 'Método não suportado', 405);
         }
     } catch (err) {
-        console.error('pomodoro error:', err);
-        return fail(res, 'Erro ao registrar sessão de estudo', 500);
+        console.error('chat error:', err);
+        return fail(res, 'Erro ao processar mensagens do tutor', 500);
     }
 }
