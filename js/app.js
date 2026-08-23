@@ -265,7 +265,6 @@ async function doLogout() {
 // --- CARREGAMENTO E INICIALIZAÇÃO DA APLICAÇÃO ---
 async function initApp() {
     setHeaderDate();
-    updateSupabaseBadge();
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
@@ -380,36 +379,70 @@ function toggleMobileSidebar() {
     }
 }
 
-// --- BADGE DE CONEXÃO COM O BANCO (NEON) ---
-async function updateSupabaseBadge() {
-    const badge = document.getElementById('supabase-status-badge');
-    const badgeText = document.getElementById('supabase-status-text');
-    if (!badge || !badgeText) return;
 
-    badge.className = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1.5 cursor-pointer";
-    badgeText.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-active"></span> Neon PostgreSQL Conectado`;
-}
-
-// --- GERENCIAMENTO DE PERFIL ---
+// --- GERENCIAMENTO DE PERFIL E CONFIGURAÇÕES ---
 function openConfigModal() {
     document.getElementById('config-username').value = appState.user.name;
+    const savedGroqKey = localStorage.getItem('axis_groq_api_key') || '';
+    const savedGroqModel = localStorage.getItem('axis_groq_model') || 'auto';
+    const keyInput = document.getElementById('config-groq-key');
+    const modelSelect = document.getElementById('config-groq-model');
+    if (keyInput) {
+        keyInput.value = savedGroqKey;
+        keyInput.type = 'password';
+    }
+    const icon = document.getElementById('icon-groq-visibility');
+    if (icon) {
+        icon.setAttribute('data-lucide', 'eye');
+    }
+    if (modelSelect) modelSelect.value = savedGroqModel;
     document.getElementById('modal-config').classList.remove('hidden');
+    lucideRefresh();
 }
 
 function closeConfigModal() {
     document.getElementById('modal-config').classList.add('hidden');
 }
 
+function toggleGroqKeyVisibility() {
+    const keyInput = document.getElementById('config-groq-key');
+    const icon = document.getElementById('icon-groq-visibility');
+    if (!keyInput || !icon) return;
+    if (keyInput.type === 'password') {
+        keyInput.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+    } else {
+        keyInput.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+    }
+    lucideRefresh();
+}
+
 async function submitConfig() {
     const name = document.getElementById('config-username').value.trim();
+    const groqKeyInput = document.getElementById('config-groq-key');
+    const groqModelSelect = document.getElementById('config-groq-model');
+
+    if (groqKeyInput) {
+        const groqKey = groqKeyInput.value.trim();
+        if (groqKey) {
+            localStorage.setItem('axis_groq_api_key', groqKey);
+        } else {
+            localStorage.removeItem('axis_groq_api_key');
+        }
+    }
+
+    if (groqModelSelect) {
+        localStorage.setItem('axis_groq_model', groqModelSelect.value);
+    }
 
     if (name) {
         appState.user.name = name;
         await apiUpdateProfile(name);
         updateUserLabels();
-        showToast("Perfil atualizado com sucesso!");
     }
 
+    showToast("Configurações salvas com sucesso!");
     closeConfigModal();
 }
 
@@ -1205,7 +1238,9 @@ async function sendChatMessage() {
             role: m.role,
             content: m.content.length > 1500 ? m.content.slice(0, 1500) + '…' : m.content
         }));
-        const response = await askGeminiTutor(modePrompt, import.meta.env.VITE_GROQ_API_KEY || '', chatAttachment, chatAbortController.signal, historyForAi);
+        const groqApiKey = localStorage.getItem('axis_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
+        const groqModel = localStorage.getItem('axis_groq_model') || 'auto';
+        const response = await askGeminiTutor(modePrompt, groqApiKey, chatAttachment, chatAbortController.signal, historyForAi, groqModel);
         chatHistory.push({ role: 'user', content: sentMsg });
         chatHistory.push({ role: 'assistant', content: response });
         await ensureHighlighter();
@@ -1472,6 +1507,7 @@ window.toggleDarkMode = toggleDarkMode;
 window.openConfigModal = openConfigModal;
 window.closeConfigModal = closeConfigModal;
 window.submitConfig = submitConfig;
+window.toggleGroqKeyVisibility = toggleGroqKeyVisibility;
 window.openAddTaskModal = openAddTaskModal;
 window.closeAddTaskModal = closeAddTaskModal;
 window.submitNewTask = submitNewTask;

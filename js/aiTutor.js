@@ -79,7 +79,7 @@ Quando o assunto for programação:
 Exemplo: dado o código Python \`for i in range(10): print(i)\` sem os dois pontos, explique que falta o sinal de dois pontos após range(10), mostre o código corrigido e explique a regra da sintaxe de blocos em Python.
 `;
 
-export async function askGeminiTutor(query, apiKey = '', attachment = null, signal = null, history = []) {
+export async function askGeminiTutor(query, apiKey = '', attachment = null, signal = null, history = [], selectedModel = 'auto') {
     if (!query && !attachment) return '';
     const hasApi = apiKey && apiKey.trim().length > 10;
 
@@ -88,10 +88,23 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
         const isImage = attachment?.type === 'image';
         const hasPdf = attachment?.type === 'pdf';
 
-        const textModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'];
-        const pdfModels = ['groq/compound', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+        const defaultTextModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'];
+        const defaultPdfModels = ['groq/compound', 'llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
         const visionModels = ['qwen/qwen3.6-27b', 'groq/compound'];
-        const models = isImage ? visionModels : (hasPdf ? pdfModels : textModels);
+
+        let models;
+        if (isImage) {
+            if (selectedModel && selectedModel !== 'auto' && (selectedModel === 'qwen/qwen3.6-27b' || selectedModel === 'groq/compound')) {
+                models = [selectedModel, ...visionModels.filter(m => m !== selectedModel)];
+            } else {
+                models = visionModels;
+            }
+        } else if (selectedModel && selectedModel !== 'auto') {
+            const fallbackList = hasPdf ? defaultPdfModels : defaultTextModels;
+            models = [selectedModel, ...fallbackList.filter(m => m !== selectedModel)];
+        } else {
+            models = hasPdf ? defaultPdfModels : defaultTextModels;
+        }
 
         let lastError = null;
 

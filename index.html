@@ -781,14 +781,8 @@
                     </div>
                 </div>
 
-                <!-- Status do Banco, Dark Mode e Alertas -->
+                <!-- Dark Mode e Alertas -->
                 <div class="flex items-center gap-2.5">
-                    
-                    <!-- Indicador do Banco Neon -->
-                    <div id="supabase-status-badge" onclick="openConfigModal()" class="cursor-pointer">
-                        <span id="supabase-status-text">Verificando...</span>
-                    </div>
-
                     <!-- Alternador de Tema Escuro -->
                     <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition" title="Alternar Tema">
                         <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
@@ -1255,9 +1249,15 @@
                             </div>
                             <p class="text-xs text-slate-500">Tire dúvidas sobre regras do IFAL, SIGAA, Pomodoro e roteiros de estudo.</p>
                         </div>
-                        <button onclick="clearChat()" class="text-xs text-rose-500 hover:underline flex items-center gap-1">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Chat
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openConfigModal()" class="text-xs text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 flex items-center gap-1 transition">
+                                <i data-lucide="settings" class="w-4 h-4"></i> Configurar IA
+                            </button>
+                            <span class="text-slate-300 dark:text-slate-700">|</span>
+                            <button onclick="clearChat()" class="text-xs text-rose-500 hover:underline flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Chat
+                            </button>
+                        </div>
                     </div>
 
                     <div class="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col overflow-hidden min-h-[350px]">
@@ -1440,26 +1440,66 @@
         </div>
     </div>
 
-    <!-- MODAL CONFIGURAÇÃO DE PERFIL -->
+    <!-- MODAL CONFIGURAÇÕES (PERFIL E GROQ AI) -->
     <div id="modal-config" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800">
+        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <h3 class="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 mb-2 uppercase tracking-wider">
-                <i data-lucide="database" class="text-emerald-600"></i> Configurações do Perfil
+                <i data-lucide="settings" class="text-emerald-600"></i> Configurações
             </h3>
-<p class="text-[10px] text-slate-400 mb-4">O seu perfil é salvo no banco de dados Neon PostgreSQL, associado à sua conta, com sincronização automática em todos os dispositivos.</p>
+            <p class="text-[10px] text-slate-400 mb-4">Gerencie os dados do perfil acadêmico e as preferências de Inteligência Artificial do Tutor Virtual.</p>
 
             <div class="space-y-4">
+                <!-- Perfil -->
                 <div>
                     <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nome do Discente</label>
                     <input type="text" id="config-username" placeholder="Seu Nome Completo" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
                 </div>
+
+                <!-- Configuração IA GROQ -->
+                <div class="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="bot" class="w-3.5 h-3.5 text-emerald-600"></i> Tutor Virtual (Groq AI)
+                        </label>
+                        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-semibold">
+                            Obter chave <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                        </a>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Chave de API (Groq API Key)</label>
+                        <div class="relative">
+                            <input type="password" id="config-groq-key" placeholder="gsk_..." class="w-full px-3 py-2.5 pr-10 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white font-mono">
+                            <button type="button" onclick="toggleGroqKeyVisibility()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1" title="Mostrar/Ocultar chave">
+                                <i id="icon-groq-visibility" data-lucide="eye" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-slate-400 mt-1">Sua chave é armazenada de forma segura e local no seu navegador.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Modelo GROQ</label>
+                        <select id="config-groq-model" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                            <option value="auto">Automático (Cascata Inteligente / Recomendado)</option>
+                            <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Mais Preciso)</option>
+                            <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Ultra Rápido)</option>
+                            <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 Distill 70B (Raciocínio)</option>
+                            <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
+                            <option value="openai/gpt-oss-20b">GPT OSS 20B</option>
+                            <option value="groq/compound">Groq Compound</option>
+                            <option value="gemma2-9b-it">Gemma 2 9B IT</option>
+                            <option value="qwen/qwen3.6-27b">Qwen 3.6 27B (Multimodal / Visão)</option>
+                        </select>
+                        <p class="text-[9px] text-slate-400 mt-1">Selecione o modelo LLM da Groq que responderá às suas dúvidas no chat.</p>
+                    </div>
+                </div>
             </div>
 
             <div class="flex gap-2 justify-between mt-6">
-                <button onclick="doLogout()" class="px-4 py-2 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/40">Sair</button>
+                <button onclick="doLogout()" class="px-4 py-2 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/40">Sair da Conta</button>
                 <div class="flex gap-2">
                     <button onclick="closeConfigModal()" class="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900">Cancelar</button>
-                    <button onclick="submitConfig()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500">Salvar Perfil</button>
+                    <button onclick="submitConfig()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500">Salvar Configurações</button>
                 </div>
             </div>
         </div>

@@ -12,7 +12,7 @@ A **Plataforma Axis** é um sistema inteligente de apoio à orientação acadêm
 - 📊 **Monitor & Simulador de Notas**: Cálculo da média mínima (6.0) do IFAL e gráficos visuais de evolução de notas bimestrais (Chart.js).
 - ⏱️ **Timer Pomodoro Integrado**: Ciclos de 25 min de estudo com 5 min de descanso e sintetizador de som Web Audio API.
 - 📈 **Métricas de Estudo**: Tempo total em Pomodoro por disciplina, streak de dias consecutivos estudando e gráficos de produtividade (por disciplina e últimos 7 dias).
-- 🤖 **Tutor Virtual**: Assistente de IA que responde a dúvidas didáticas sobre o SIGAA, segunda chamada, limites de falta (75%) e auxílios institucionais.
+- 🤖 **Tutor Virtual com IA (Groq)**: Assistente inteligente com configuração personalizada de chave de API Groq e seleção de modelos LLM (Llama 3.3, Llama 3.1, DeepSeek R1, GPT-OSS, Qwen, etc.), além de fallback com orientações do regulamento do IFAL.
 - 🔐 **Login e Senha**: Cada estudante cria a própria conta; tarefas, eventos, materiais, notas e notificações ficam isolados por usuário.
 - ⚡ **Banco de Dados Neon PostgreSQL**: Persistência em nuvem via funções serverless da Vercel, com fallback automático para modo LocalStorage quando offline.
 
