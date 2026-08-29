@@ -32,7 +32,24 @@ A **Plataforma Axis** é um sistema inteligente de apoio à orientação acadêm
    ```
    Isso cria as tabelas `profiles` (contas de login), `sessions`, `tasks`, `events`, `materials`, `notifications`, `academic_grades` e `pomodoro_sessions`.
 
-### 3. Login e Registro
+### 3. Chave de criptografia dos segredos
+
+Cada estudante cadastra a própria chave da API Groq pela tela **Configurar IA**. A chave é gravada
+**cifrada com AES-256-GCM** na coluna `profiles.groq_api_key_enc` — nunca em texto puro e nunca
+devolvida ao navegador. Para isso, defina a chave-mestra no ambiente:
+
+```bash
+# gere uma chave de 32 bytes
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Guarde o valor em `AXIS_ENCRYPTION_KEY` (local e na Vercel). Se essa variável mudar, as chaves já
+salvas deixam de ser legíveis e os alunos precisarão cadastrá-las de novo.
+
+`GROQ_API_KEY` continua opcional: quando definida, funciona como chave de fallback da instituição
+para quem ainda não cadastrou a sua.
+
+### 4. Login e Registro
 1. Abra a aplicação Axis no navegador.
 2. Na tela inicial, clique em **Criar Conta**, informe nome, e-mail e senha.
 3. As sessões são mantidas por cookie `httpOnly` por 7 dias; use o botão **Sair** no cabeçalho para encerrar.

@@ -279,6 +279,12 @@ export async function apiClearChatHistory() {
     return true;
 }
 
+// Informa se a chave da Groq está configurada no servidor (variável GROQ_API_KEY).
+export async function apiFetchTutorStatus() {
+    try { return await request('/tutor'); }
+    catch (e) { if (e.status === 401) throw e; return { serverKey: false }; }
+}
+
 // --- MÉTRICAS DE ESTUDO (SESSÕES DE POMODORO) ---
 export async function apiFetchPomodoroSessions() {
     try { return await request('/pomodoro'); }
@@ -318,6 +324,14 @@ export async function apiFetchProfile() {
     return request('/profile');
 }
 
-export async function apiUpdateProfile(name) {
-    return request('/profile', { method: 'PUT', body: JSON.stringify({ full_name: name }) });
+export async function apiUpdateProfile(name, extras = {}) {
+    return request('/profile', { method: 'PUT', body: JSON.stringify({ full_name: name, ...extras }) });
+}
+
+// Salva a chave da Groq do estudante. A chave viaja uma única vez até o servidor,
+// que a guarda cifrada (AES-256-GCM) no banco. String vazia remove a chave.
+export async function apiSaveGroqKey(name, apiKey, model) {
+    const payload = { full_name: name, groq_model: model };
+    if (typeof apiKey === 'string') payload.groq_api_key = apiKey;
+    return request('/profile', { method: 'PUT', body: JSON.stringify(payload) });
 }
