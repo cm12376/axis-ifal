@@ -1281,6 +1281,36 @@ async function sendChatMessage() {
     typing.classList.remove('hidden');
     setChatStopBtnVisible(true);
 
+    // Cria bolha vazia para stream e atualiza incrementalmente
+    let streamEl = null;
+    let streamRaw = '';
+    let streamTimer = null;
+    function ensureStreamBubble() {
+        if (streamEl) return streamEl;
+        const chatBox = document.getElementById('chat-box');
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex gap-3 max-w-xl';
+        wrapper.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">IA</div>
+            <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl rounded-tl-none p-4 text-xs shadow-xs">
+                <p class="font-bold text-[9px] opacity-75 mb-1">Tutor Virtual IFAL</p>
+                <div class="leading-relaxed chat-md streaming-content"></div>
+            </div>
+        `;
+        chatBox.appendChild(wrapper);
+        streamEl = wrapper.querySelector('.streaming-content');
+        return streamEl;
+    }
+    function scheduleRender() {
+        if (streamTimer) return;
+        streamTimer = setTimeout(async () => {
+            streamTimer = null;
+            if (!streamEl) return;
+            streamEl.textContent = streamRaw + ' ▌';
+            streamEl.parentElement.parentElement.parentElement.scrollTop = streamEl.parentElement.parentElement.parentElement.scrollHeight;
+        }, 40);
+    }
+
     try {
         const historyForAi = chatHistory.slice(-8).map(m => ({
             role: m.role,
@@ -1288,18 +1318,39 @@ async function sendChatMessage() {
         }));
         const groqApiKey = localStorage.getItem('axis_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
         const groqModel = localStorage.getItem('axis_groq_model') || 'auto';
-        const response = await askGeminiTutor(modePrompt, groqApiKey, chatAttachment, chatAbortController.signal, historyForAi, groqModel);
+        const onDelta = (delta, full) => {
+            streamRaw = full;
+            typing.classList.add('hidden');
+            ensureStreamBubble();
+            scheduleRender();
+        };
+        const response = await askGeminiTutor(modePrompt, groqApiKey, chatAttachment, chatAbortController.signal, historyForAi, groqModel, onDelta);
         chatHistory.push({ role: 'user', content: sentMsg });
         chatHistory.push({ role: 'assistant', content: response });
         apiSaveChatMessage('user', sentMsg).catch(() => {});
         apiSaveChatMessage('assistant', response).catch(() => {});
-        await ensureHighlighter();
-        const html = await renderMarkdown(response);
-        appendChatMessage(html, 'ai', true);
+        if (streamEl) {
+            if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+            await ensureHighlighter();
+            const html = await renderMarkdown(response);
+            const wrapper = streamEl.closest('.flex');
+            wrapper.querySelector('.chat-md').innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        } else {
+            await ensureHighlighter();
+            const html = await renderMarkdown(response);
+            appendChatMessage(html, 'ai', true);
+        }
     } catch (err) {
         if (err.name === 'AbortError') {
-            appendChatMessage("_Geração interrompida._", 'ai', true);
+            if (streamEl && streamRaw) {
+                const wrapper = streamEl.closest('.flex');
+                wrapper.querySelector('.chat-md').textContent = streamRaw + '\n\n_Geração interrompida._';
+            } else {
+                appendChatMessage("_Geração interrompida._", 'ai', true);
+            }
         } else {
+            if (streamEl) streamEl.closest('.flex').remove();
             appendChatMessage("Desculpe, ocorreu um erro de conexão com o Tutor Virtual.", 'ai');
         }
     } finally {

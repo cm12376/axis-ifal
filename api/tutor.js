@@ -41,7 +41,8 @@ export default async function handler(req, res) {
         }
 
         const body = await getBody(req);
-        const { messages = [], attachment = null, selectedModel = 'auto' } = body;
+        const { messages = [], attachment = null, selectedModel = 'auto', stream = false } = body;
+        const wantsStream = stream === true || req.headers.accept?.includes('text/event-stream');
 
         const isImage = attachment?.type === 'image';
         const hasPdf = attachment?.type === 'pdf';
@@ -79,6 +80,62 @@ export default async function handler(req, res) {
         ];
 
         let lastError = null;
+
+        // Se o cliente pediu stream, tenta streaming no primeiro modelo viável e faz proxy SSE
+        if (wantsStream) {
+            for (const model of models) {
+                try {
+                    const payload = { model, messages: systemMessages, stream: true };
+                    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!groqRes.ok) {
+                        const errBody = await groqRes.json().catch(() => ({}));
+                        lastError = `${model}: HTTP ${groqRes.status} - ${(errBody?.error?.message || '').slice(0, 120)}`;
+                        if (groqRes.status === 429 || groqRes.status === 500 || groqRes.status === 503) continue;
+                        break;
+                    }
+                    res.writeHead(200, {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache, no-transform',
+                        'Connection': 'keep-alive',
+                        'X-Accel-Buffering': 'no'
+                    });
+                    const reader = groqRes.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buf = '';
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buf += decoder.decode(value, { stream: true });
+                            const parts = buf.split('\n\n');
+                            buf = parts.pop() || '';
+                            for (const part of parts) {
+                                const line = part.trim();
+                                if (!line.startsWith('data:')) continue;
+                                const data = line.slice(5).trim();
+                                if (data === '[DONE]') { res.write(`data: [DONE]\n\n`); res.end(); return; }
+                                try {
+                                    const json = JSON.parse(data);
+                                    const delta = json.choices?.[0]?.delta?.content || '';
+                                    if (delta) res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+                                } catch {}
+                            }
+                        }
+                    } catch (e) { /* groq stream interrompido */ }
+                    res.write(`data: [DONE]\n\n`);
+                    res.end();
+                    return;
+                } catch (err) {
+                    lastError = `${model}: ${err.message}`;
+                    continue;
+                }
+            }
+            return fail(res, lastError || 'Falha no streaming', 500);
+        }
 
         for (const model of models) {
             for (let attempt = 0; attempt < 2; attempt++) {

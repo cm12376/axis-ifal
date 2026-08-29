@@ -79,9 +79,10 @@ Quando o assunto for programação:
 Exemplo: dado o código Python \`for i in range(10): print(i)\` sem os dois pontos, explique que falta o sinal de dois pontos após range(10), mostre o código corrigido e explique a regra da sintaxe de blocos em Python.
 `;
 
-export async function askGeminiTutor(query, apiKey = '', attachment = null, signal = null, history = [], selectedModel = 'auto') {
+export async function askGeminiTutor(query, apiKey = '', attachment = null, signal = null, history = [], selectedModel = 'auto', onDelta = null) {
     if (!query && !attachment) return '';
 
+    const hasOnDelta = typeof onDelta === 'function';
     // Tenta primeiro o proxy server-side (chave segura em variável de ambiente)
     try {
         const payload = {
@@ -90,26 +91,51 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
                 { role: 'user', content: query }
             ],
             attachment,
-            selectedModel
+            selectedModel,
+            stream: hasOnDelta
         };
 
         const res = await fetch('/api/tutor', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(hasOnDelta ? { 'Accept': 'text/event-stream' } : {}) },
             credentials: 'same-origin',
             body: JSON.stringify(payload),
             signal
         });
 
         if (res.ok) {
-            const data = await res.json();
-            if (data.needsUserKey) {
-                // Servidor não tem GROQ_API_KEY configurada — cai no fluxo com chave do usuário
-            } else if (data.text) {
-                return data.text;
-            } else if (data.error) {
-                if (attachment?.type === 'pdf') return getLocalPdfResponse(query, attachment.text, data.error);
-                return getLocalTutorResponse(query, data.error);
+            const ct = res.headers.get('content-type') || '';
+            if (hasOnDelta && ct.includes('text/event-stream')) {
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let full = '';
+                let buf = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    const parts = buf.split('\n\n');
+                    buf = parts.pop() || '';
+                    for (const part of parts) {
+                        const t = part.trim();
+                        if (!t.startsWith('data:')) continue;
+                        const d = t.slice(5).trim();
+                        if (d === '[DONE]') break;
+                        try { const j = JSON.parse(d); const delta = j.delta || ''; if (delta) { full += delta; onDelta(delta, full); } } catch {}
+                    }
+                }
+                if (full) return full;
+            } else {
+                const data = await res.json();
+                if (data.needsUserKey) {
+                    // Servidor não tem GROQ_API_KEY configurada — cai no fluxo com chave do usuário
+                } else if (data.text) {
+                    if (hasOnDelta) { onDelta(data.text, data.text); }
+                    return data.text;
+                } else if (data.error) {
+                    if (attachment?.type === 'pdf') return getLocalPdfResponse(query, attachment.text, data.error);
+                    return getLocalTutorResponse(query, data.error);
+                }
             }
         }
     } catch (err) {
@@ -155,6 +181,52 @@ export async function askGeminiTutor(query, apiKey = '', attachment = null, sign
             userContent = `${query}\n\n[Conteúdo extraído do documento anexado]:\n${attachment.text}`;
         } else {
             userContent = query;
+        }
+
+        // Se o caller quer stream, tenta Groq com stream:true e repassa deltas
+        if (hasOnDelta) {
+            for (const model of models) {
+                try {
+                    const payload = { model, messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: userContent }], stream: true };
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
+                        body: JSON.stringify(payload),
+                        signal
+                    });
+                    if (!response.ok) {
+                        const errBody = await response.json().catch(() => ({}));
+                        lastError = `${model}: HTTP ${response.status} - ${(errBody?.error?.message || '').slice(0, 120)}`;
+                        if (response.status === 429 || response.status === 500 || response.status === 503) {
+                            const reset = parseFloat(response.headers.get('x-ratelimit-reset-tokens') || '0');
+                            await new Promise(r => setTimeout(r, Math.min(reset > 0 ? reset * 1000 : 2500, 10000)));
+                            continue;
+                        }
+                        break;
+                    }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buf = ''; let full = '';
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buf += decoder.decode(value, { stream: true });
+                        const parts = buf.split('\n\n'); buf = parts.pop() || '';
+                        for (const part of parts) {
+                            const t = part.trim(); if (!t.startsWith('data:')) continue;
+                            const d = t.slice(5).trim(); if (d === '[DONE]') break;
+                            try { const j = JSON.parse(d); const delta = j.choices?.[0]?.delta?.content || ''; if (delta) { full += delta; onDelta(delta, full); } } catch {}
+                        }
+                    }
+                    if (full) return full;
+                    lastError = `${model}: resposta vazia (stream)`;
+                    break;
+                } catch (err) {
+                    if (err.name === 'AbortError') throw err;
+                    lastError = `${model}: ${err.message}`;
+                    break;
+                }
+            }
         }
 
         for (const model of models) {
