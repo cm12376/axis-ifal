@@ -1244,7 +1244,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Tutor Inteligente Ativo</span>
+                                <span id="ai-status-badge" title="Verificando configuração da IA..." class="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Verificando IA...</span>
                                 <h2 class="text-xl font-bold">Tutor Acadêmico do IFAL</h2>
                             </div>
                             <p class="text-xs text-slate-500">Tire dúvidas sobre regras do IFAL, SIGAA, Pomodoro e roteiros de estudo.</p>
@@ -1474,7 +1474,11 @@
                                 <i id="icon-groq-visibility" data-lucide="eye" class="w-3.5 h-3.5"></i>
                             </button>
                         </div>
-                        <p class="text-[9px] text-slate-400 mt-1">Sua chave é armazenada de forma segura e local no seu navegador.</p>
+                        <div class="flex items-start justify-between gap-2 mt-1">
+                            <p class="text-[9px] text-slate-400">Sua chave é enviada uma única vez e guardada <strong>criptografada (AES-256-GCM)</strong> no banco de dados. Ela nunca é exibida de volta.</p>
+                            <button type="button" id="btn-remove-groq-key" onclick="removeGroqKey()" class="hidden shrink-0 text-[9px] font-bold text-rose-500 hover:underline">Remover chave</button>
+                        </div>
+                        <p id="config-ai-status" class="text-[9px] mt-1 font-semibold text-slate-400">Verificando configuração da IA...</p>
                     </div>
 
                     <div>

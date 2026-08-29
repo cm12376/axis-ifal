@@ -78,6 +78,7 @@ export async function requireAuth(req, res) {
 
 export function sanitizeUser(user) {
     if (!user) return null;
-    const { password_hash, ...rest } = user;
-    return rest;
+    // A chave cifrada nunca sai do servidor; o cliente recebe apenas a dica e o estado.
+    const { password_hash, groq_api_key_enc, ...rest } = user;
+    return { ...rest, has_groq_key: Boolean(groq_api_key_enc) };
 }

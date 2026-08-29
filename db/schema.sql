@@ -11,12 +11,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     course TEXT DEFAULT 'Técnico em Informática',
     campus TEXT DEFAULT 'Campus Maceió',
     avatar_url TEXT DEFAULT '',
+    -- Chave da API Groq do estudante, cifrada com AES-256-GCM (nunca em texto puro)
+    groq_api_key_enc TEXT,
+    -- Últimos caracteres da chave, só para exibição no formulário (ex: gsk_...4f2a)
+    groq_key_hint TEXT,
+    groq_model TEXT DEFAULT 'auto',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Migração idempotente para bancos já existentes (criados antes do login)
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_api_key_enc TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_key_hint TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_model TEXT DEFAULT 'auto';
 
 -- 1B. SESSÕES DE LOGIN (token guardado em cookie httpOnly)
 CREATE TABLE IF NOT EXISTS public.sessions (

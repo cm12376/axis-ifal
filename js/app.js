@@ -32,7 +32,9 @@ import {
     apiLogPomodoroSession,
     apiFetchChatHistory,
     apiSaveChatMessage,
-    apiClearChatHistory
+    apiClearChatHistory,
+    apiFetchTutorStatus,
+    apiSaveGroqKey
 } from './apiClient.js';
 
 import { askGeminiTutor } from './aiTutor.js';
@@ -271,6 +273,8 @@ async function doLogout() {
 // --- CARREGAMENTO E INICIALIZAÇÃO DA APLICAÇÃO ---
 async function initApp() {
     setHeaderDate();
+    updateAiStatusBadge();
+    refreshAiStatus();
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
@@ -302,6 +306,9 @@ async function initApp() {
         renderMaterials();
         renderNotifications();
         renderGradesSection();
+
+        // Chaves salvas no navegador por versões antigas migram para o banco (cifradas).
+        migrateLocalGroqKey().then(migrated => { if (migrated) refreshAiStatus(); });
 
     } catch (err) {
         if (err.status === 401) {
@@ -386,24 +393,127 @@ function toggleMobileSidebar() {
 }
 
 
+// --- STATUS DE CONFIGURAÇÃO DA IA (CHAVE DA API) ---
+// A chave da Groq fica cifrada no banco. O navegador só conhece o estado e a dica.
+let aiStatus = { userKey: false, serverKey: false, keyHint: null, model: 'auto', canStoreKey: true, loaded: false };
+
+function describeAiStatus() {
+    if (!aiStatus.loaded) {
+        return { configured: null, label: 'Verificando IA...', detail: 'Verificando a configuração da IA...' };
+    }
+    if (aiStatus.userKey) {
+        return {
+            configured: true,
+            label: 'IA ativa (sua chave)',
+            detail: `Usando a sua chave da API Groq (${aiStatus.keyHint || 'gsk_...'}), guardada criptografada no banco de dados.`
+        };
+    }
+    if (aiStatus.serverKey) {
+        return {
+            configured: true,
+            label: 'IA ativa (servidor)',
+            detail: 'A chave da API está configurada no servidor. Você também pode cadastrar a sua própria chave em "Configurar IA".'
+        };
+    }
+    return {
+        configured: false,
+        label: 'IA não configurada',
+        detail: 'Nenhuma chave de API cadastrada. O tutor responde apenas com conteúdo local pré-definido. Cadastre a sua chave em "Configurar IA".'
+    };
+}
+
+function updateAiStatusBadge() {
+    const status = describeAiStatus();
+
+    const badge = document.getElementById('ai-status-badge');
+    if (badge) {
+        badge.className = 'px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ' + (
+            status.configured === true
+                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                : status.configured === false
+                    ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+        );
+        badge.textContent = status.label;
+        badge.title = status.detail;
+    }
+
+    const modalStatus = document.getElementById('config-ai-status');
+    if (modalStatus) {
+        modalStatus.className = 'text-[9px] mt-1 font-semibold ' + (
+            status.configured === true
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : status.configured === false
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-slate-400'
+        );
+        const prefix = status.configured === true ? '✅ ' : status.configured === false ? '⚠️ ' : '';
+        modalStatus.textContent = prefix + status.detail;
+    }
+}
+
+// Pergunta ao servidor de onde vem a chave usada pelo tutor (sem nunca receber a chave).
+async function refreshAiStatus() {
+    try {
+        const status = await apiFetchTutorStatus();
+        aiStatus = { ...aiStatus, ...(status || {}), loaded: true };
+    } catch (err) {
+        aiStatus = { ...aiStatus, userKey: false, serverKey: false, loaded: true };
+    }
+    updateAiStatusBadge();
+    return aiStatus;
+}
+
+// Migra chaves que ficaram salvas no navegador em versões anteriores: envia ao
+// servidor (que as cifra) e apaga o rastro do localStorage.
+async function migrateLocalGroqKey() {
+    const legacyKey = (localStorage.getItem('axis_groq_api_key') || '').trim();
+    const legacyModel = localStorage.getItem('axis_groq_model');
+    if (!legacyKey) {
+        if (legacyModel) localStorage.removeItem('axis_groq_model');
+        return false;
+    }
+    try {
+        await apiSaveGroqKey(appState.user.name, legacyKey, legacyModel || 'auto');
+        localStorage.removeItem('axis_groq_api_key');
+        localStorage.removeItem('axis_groq_model');
+        showToast('Sua chave de IA foi movida do navegador para o banco, de forma criptografada.');
+        return true;
+    } catch (err) {
+        console.error('Não foi possível migrar a chave da IA para o servidor:', err);
+        return false;
+    }
+}
+
 // --- GERENCIAMENTO DE PERFIL E CONFIGURAÇÕES ---
-function openConfigModal() {
+async function openConfigModal() {
     document.getElementById('config-username').value = appState.user.name;
-    const savedGroqKey = localStorage.getItem('axis_groq_api_key') || '';
-    const savedGroqModel = localStorage.getItem('axis_groq_model') || 'auto';
     const keyInput = document.getElementById('config-groq-key');
     const modelSelect = document.getElementById('config-groq-model');
-    if (keyInput) {
-        keyInput.value = savedGroqKey;
-        keyInput.type = 'password';
-    }
+    const removeBtn = document.getElementById('btn-remove-groq-key');
+
+    const paintKeyFields = () => {
+        if (keyInput) {
+            // A chave salva nunca volta ao navegador: campo vazio e dica no placeholder.
+            keyInput.value = '';
+            keyInput.type = 'password';
+            keyInput.placeholder = aiStatus.userKey ? `Chave salva: ${aiStatus.keyHint || 'gsk_...'}` : 'gsk_...';
+        }
+        if (modelSelect) modelSelect.value = aiStatus.model || 'auto';
+        if (removeBtn) removeBtn.classList.toggle('hidden', !aiStatus.userKey);
+    };
+
     const icon = document.getElementById('icon-groq-visibility');
-    if (icon) {
-        icon.setAttribute('data-lucide', 'eye');
-    }
-    if (modelSelect) modelSelect.value = savedGroqModel;
+    if (icon) icon.setAttribute('data-lucide', 'eye');
+
+    paintKeyFields();
+    updateAiStatusBadge();
     document.getElementById('modal-config').classList.remove('hidden');
     lucideRefresh();
+
+    // Revalida com o servidor enquanto o modal já está aberto.
+    await refreshAiStatus();
+    paintKeyFields();
 }
 
 function closeConfigModal() {
@@ -424,31 +534,50 @@ function toggleGroqKeyVisibility() {
     lucideRefresh();
 }
 
+async function removeGroqKey() {
+    if (!confirm('Remover a sua chave de IA salva? O tutor voltará a responder sem inteligência artificial.')) return;
+    try {
+        await apiSaveGroqKey(appState.user.name, '', document.getElementById('config-groq-model')?.value || 'auto');
+        const keyInput = document.getElementById('config-groq-key');
+        if (keyInput) {
+            keyInput.value = '';
+            keyInput.placeholder = 'gsk_...';
+        }
+        await refreshAiStatus();
+        document.getElementById('btn-remove-groq-key')?.classList.add('hidden');
+        showToast('Chave de IA removida.');
+    } catch (err) {
+        showToast(err.message || 'Não foi possível remover a chave.');
+    }
+}
+
 async function submitConfig() {
     const name = document.getElementById('config-username').value.trim();
     const groqKeyInput = document.getElementById('config-groq-key');
     const groqModelSelect = document.getElementById('config-groq-model');
 
-    if (groqKeyInput) {
-        const groqKey = groqKeyInput.value.trim();
-        if (groqKey) {
-            localStorage.setItem('axis_groq_api_key', groqKey);
-        } else {
-            localStorage.removeItem('axis_groq_api_key');
-        }
+    const typedKey = groqKeyInput ? groqKeyInput.value.trim() : '';
+    const model = groqModelSelect ? groqModelSelect.value : 'auto';
+    const finalName = name || appState.user.name;
+
+    try {
+        // Campo em branco mantém a chave já salva; só enviamos quando o aluno digita uma nova.
+        await apiSaveGroqKey(finalName, typedKey ? typedKey : undefined, model);
+    } catch (err) {
+        showToast(err.message || 'Não foi possível salvar a chave de IA.');
+        return;
     }
 
-    if (groqModelSelect) {
-        localStorage.setItem('axis_groq_model', groqModelSelect.value);
-    }
+    if (groqKeyInput) groqKeyInput.value = '';
 
     if (name) {
         appState.user.name = name;
-        await apiUpdateProfile(name);
         updateUserLabels();
     }
 
-    showToast("Configurações salvas com sucesso!");
+    await refreshAiStatus();
+
+    showToast(typedKey ? 'Chave de IA salva com segurança!' : 'Configurações salvas com sucesso!');
     closeConfigModal();
 }
 
@@ -1244,9 +1373,8 @@ async function sendChatMessage() {
             role: m.role,
             content: m.content.length > 1500 ? m.content.slice(0, 1500) + '…' : m.content
         }));
-        const groqApiKey = localStorage.getItem('axis_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
-        const groqModel = localStorage.getItem('axis_groq_model') || 'auto';
-        const response = await askGeminiTutor(modePrompt, groqApiKey, chatAttachment, chatAbortController.signal, historyForAi, groqModel);
+        const groqModel = aiStatus.model || 'auto';
+        const response = await askGeminiTutor(modePrompt, chatAttachment, chatAbortController.signal, historyForAi, groqModel);
         chatHistory.push({ role: 'user', content: sentMsg });
         chatHistory.push({ role: 'assistant', content: response });
         apiSaveChatMessage('user', sentMsg).catch(() => {});
@@ -1517,6 +1645,7 @@ window.openConfigModal = openConfigModal;
 window.closeConfigModal = closeConfigModal;
 window.submitConfig = submitConfig;
 window.toggleGroqKeyVisibility = toggleGroqKeyVisibility;
+window.removeGroqKey = removeGroqKey;
 window.openAddTaskModal = openAddTaskModal;
 window.closeAddTaskModal = closeAddTaskModal;
 window.submitNewTask = submitNewTask;

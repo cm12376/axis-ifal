@@ -2,6 +2,7 @@
 // Mantém a chave de API segura no servidor, sem expô-la no navegador.
 import { ok, fail, getBody } from './_helpers.js';
 import { requireAuth } from './_auth.js';
+import { decryptSecret, encryptionAvailable } from './_crypto.js';
 
 const SYSTEM_PROMPT = `
 Você é o Tutor Virtual do IFAL (Instituto Federal de Alagoas - Campus Maceió).
@@ -28,20 +29,46 @@ const DEFAULT_TEXT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 
 const DEFAULT_PDF_MODELS = ['groq/compound', 'llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
 const VISION_MODELS = ['qwen/qwen3.6-27b', 'groq/compound'];
 
+function getServerKey() {
+    const apiKey = (process.env.GROQ_API_KEY || '').trim();
+    return apiKey.length >= 10 ? apiKey : null;
+}
+
+// A chave do estudante (salva cifrada no banco) tem prioridade sobre a do servidor.
+function getUserKey(user) {
+    if (!user?.groq_api_key_enc) return null;
+    const key = decryptSecret(user.groq_api_key_enc);
+    return key && key.trim().length >= 10 ? key.trim() : null;
+}
+
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return fail(res, 'Método não suportado', 405);
+    if (req.method !== 'GET' && req.method !== 'POST') {
+        return fail(res, 'Método não suportado', 405);
+    }
 
     try {
         const user = await requireAuth(req, res);
         if (!user) return;
 
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey || apiKey.trim().length < 10) {
+        // Consulta de status: diz de onde vem a chave, sem nunca revelá-la.
+        if (req.method === 'GET') {
+            return ok(res, {
+                userKey: Boolean(getUserKey(user)),
+                serverKey: Boolean(getServerKey()),
+                keyHint: user.groq_key_hint || null,
+                model: user.groq_model || 'auto',
+                canStoreKey: encryptionAvailable()
+            });
+        }
+
+        const apiKey = getUserKey(user) || getServerKey();
+        if (!apiKey) {
             return ok(res, { needsUserKey: true });
         }
 
         const body = await getBody(req);
-        const { messages = [], attachment = null, selectedModel = 'auto' } = body;
+        const { messages = [], attachment = null } = body;
+        const selectedModel = body.selectedModel || user.groq_model || 'auto';
 
         const isImage = attachment?.type === 'image';
         const hasPdf = attachment?.type === 'pdf';
@@ -92,7 +119,7 @@ export default async function handler(req, res) {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${apiKey.trim()}`
+                            'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify(payload)
                     });
