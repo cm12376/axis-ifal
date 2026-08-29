@@ -16,6 +16,7 @@ export default defineConfig({
             includeAssets: ['icons/*.png'],
             manifest: false,
             workbox: {
+                importScripts: ['/push-handler.js'],
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
                 navigateFallback: '/index.html',
                 navigateFallbackDenylist: [/^\/api\//],

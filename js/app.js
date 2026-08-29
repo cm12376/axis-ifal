@@ -32,7 +32,10 @@ import {
     apiLogPomodoroSession,
     apiFetchChatHistory,
     apiSaveChatMessage,
-    apiClearChatHistory
+    apiClearChatHistory,
+    apiGetVapidKey,
+    apiSubscribePush,
+    apiSendTestPush
 } from './apiClient.js';
 
 import { askGeminiTutor } from './aiTutor.js';
@@ -170,6 +173,44 @@ async function boot() {
     }
 }
 
+// --- PUSH NOTIFICATIONS (PWA - alertas em segundo plano) ---
+function urlBase64ToUint8Array(base64) {
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(b64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+}
+
+async function initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    try {
+        if (Notification.permission === 'denied') return;
+        if (Notification.permission === 'default') {
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') return;
+        }
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            const vapidKey = await apiGetVapidKey();
+            if (!vapidKey) return;
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
+        }
+        const json = sub.toJSON();
+        await apiSubscribePush({ endpoint: json.endpoint, keys: json.keys });
+    } catch (e) { console.warn('Push init falhou:', e); }
+}
+
+async function showLocalNotification(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(title, { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', vibrate: [200, 100, 200] });
+    } catch {}
+}
+
 function showAuthScreen() {
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app-shell').classList.add('hidden');
@@ -271,6 +312,7 @@ async function doLogout() {
 // --- CARREGAMENTO E INICIALIZAÇÃO DA APLICAÇÃO ---
 async function initApp() {
     setHeaderDate();
+    initPushNotifications().catch(() => {});
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
@@ -1410,11 +1452,16 @@ function togglePomo() {
                 if (pomoCurrentMode === 'foco') {
                     logPomodoroSession(25);
                     showToast("Sessão de Foco concluída! Pausa de 5 minutos.");
+                    showLocalNotification('✅ Foco concluído!', 'Hora da pausa de 5 minutos — hidrate-se!');
+                    // Fallback server push caso a aba esteja fechada
+                    apiSendTestPush('✅ Foco concluído!', 'Pausa de 5 minutos iniciada.').catch(()=>{});
                     pomoCurrentMode = 'pausa';
                     pomoTime = 5 * 60;
                     document.getElementById('pomo-label').innerText = "Pausa";
                 } else {
                     showToast("Pausa concluída! De volta aos estudos.");
+                    showLocalNotification('⏰ Pausa encerrada', 'De volta ao foco por 25 minutos!');
+                    apiSendTestPush('⏰ Pausa encerrada', 'De volta ao foco!').catch(()=>{});
                     pomoCurrentMode = 'foco';
                     pomoTime = 25 * 60;
                     document.getElementById('pomo-label').innerText = "Trabalho";
@@ -1548,6 +1595,7 @@ window.togglePomo = togglePomo;
 window.resetPomo = resetPomo;
 window.scrollToAuth = scrollToAuth;
 window.scrollToSection = scrollToSection;
+window.initPushNotifications = initPushNotifications;
 
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('chat-menu');

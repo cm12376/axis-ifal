@@ -103,6 +103,20 @@ CREATE TABLE IF NOT EXISTS public.pomodoro_sessions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 9. INSCRIÇÕES PUSH (PWA - alertas em segundo plano)
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, endpoint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_user ON public.push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_endpoint ON public.push_subscriptions(endpoint);
+
 -- ÍNDICES
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON public.tasks(status);

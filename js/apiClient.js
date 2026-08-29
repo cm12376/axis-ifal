@@ -298,6 +298,21 @@ export async function apiLogPomodoroSession(category, minutes) {
     }
 }
 
+// --- PUSH NOTIFICATIONS (PWA) ---
+export async function apiGetVapidKey() {
+    const data = await request('/push?action=vapid');
+    return data.publicKey;
+}
+export async function apiSubscribePush(subscription) {
+    return request('/push?action=subscribe', { method: 'POST', body: JSON.stringify(subscription) });
+}
+export async function apiUnsubscribePush(endpoint) {
+    return request('/push?action=unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) });
+}
+export async function apiSendTestPush(title, body) {
+    return request('/push?action=send', { method: 'POST', body: JSON.stringify({ title, body }) });
+}
+
 // --- PERFIL ---
 export async function apiFetchProfile() {
     return request('/profile');

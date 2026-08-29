@@ -16,7 +16,8 @@
     "katex": "^0.18.4",
     "lucide": "^0.474.0",
     "marked": "^18.0.9",
-    "shiki": "^4.4.3"
+    "shiki": "^4.4.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "vite": "^6.1.0",
