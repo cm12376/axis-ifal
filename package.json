@@ -19,6 +19,7 @@
     "shiki": "^4.4.3"
   },
   "devDependencies": {
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }
