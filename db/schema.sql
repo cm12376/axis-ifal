@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     -- Últimos caracteres da chave, só para exibição no formulário (ex: gsk_...4f2a)
     groq_key_hint TEXT,
     groq_model TEXT DEFAULT 'auto',
+    notif_sound TEXT DEFAULT 'default',
+    notif_sound_custom TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -25,6 +27,8 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_api_key_enc TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_key_hint TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_model TEXT DEFAULT 'auto';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notif_sound TEXT DEFAULT 'default';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notif_sound_custom TEXT;
 
 -- 1B. SESSÕES DE LOGIN (token guardado em cookie httpOnly)
 CREATE TABLE IF NOT EXISTS public.sessions (

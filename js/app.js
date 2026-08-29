@@ -213,6 +213,52 @@ async function showLocalNotification(title, body) {
     } catch {}
 }
 
+// --- SOM CUSTOMIZÁVEL DAS NOTIFICAÇÕES ---
+const NOTIF_SOUNDS = { default: '/sounds/default.wav', soft: '/sounds/soft.wav', bell: '/sounds/bell.wav' };
+let pendingCustomSoundData = null;
+
+function getNotifSoundChoice() {
+    return localStorage.getItem('axis_notif_sound') || appState.user?.notif_sound || 'default';
+}
+function getCustomSoundData() {
+    return pendingCustomSoundData || localStorage.getItem('axis_notif_sound_custom') || appState.user?.notif_sound_custom || null;
+}
+async function playNotifSound(choice = null) {
+    const sel = choice || getNotifSoundChoice();
+    let src = null;
+    if (sel === 'custom') src = getCustomSoundData();
+    else src = NOTIF_SOUNDS[sel] || NOTIF_SOUNDS.default;
+    if (!src) return;
+    try {
+        const audio = new Audio(src);
+        audio.volume = 0.8;
+        await audio.play();
+    } catch {}
+}
+function previewNotifSound() {
+    const sel = document.getElementById('config-notif-sound')?.value || getNotifSoundChoice();
+    playNotifSound(sel);
+}
+function handleNotifSoundSelect() {
+    const sel = document.getElementById('config-notif-sound')?.value;
+    const wrap = document.getElementById('config-custom-sound-wrap');
+    if (wrap) wrap.classList.toggle('hidden', sel !== 'custom');
+    if (window.lucide) lucide.createIcons();
+}
+async function handleNotifFileChange(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) { showToast('Arquivo muito grande (máx 500KB).'); input.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        pendingCustomSoundData = e.target.result;
+        localStorage.setItem('axis_notif_sound_custom', pendingCustomSoundData);
+        document.getElementById('config-notif-custom-info')?.classList.remove('hidden');
+        showToast('Som customizado carregado. Salve as configurações.');
+    };
+    reader.readAsDataURL(file);
+}
+
 function showAuthScreen() {
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app-shell').classList.add('hidden');
@@ -337,8 +383,16 @@ async function initApp() {
         appState.grades = grades || [];
         appState.pomodoroSessions = pomodoroSessions || [];
 
-        if (profile && profile.full_name) {
-            appState.user.name = profile.full_name;
+        if (profile) {
+            if (profile.full_name) appState.user.name = profile.full_name;
+            if (profile.notif_sound) {
+                appState.user.notif_sound = profile.notif_sound;
+                localStorage.setItem('axis_notif_sound', profile.notif_sound);
+            }
+            if (profile.notif_sound_custom) {
+                appState.user.notif_sound_custom = profile.notif_sound_custom;
+                localStorage.setItem('axis_notif_sound_custom', profile.notif_sound_custom);
+            }
         }
 
         updateUserLabels();
@@ -548,6 +602,20 @@ async function openConfigModal() {
     const icon = document.getElementById('icon-groq-visibility');
     if (icon) icon.setAttribute('data-lucide', 'eye');
 
+    // Som das notificações
+    const soundSel = document.getElementById('config-notif-sound');
+    const soundWrap = document.getElementById('config-custom-sound-wrap');
+    const soundInfo = document.getElementById('config-notif-custom-info');
+    const fileInput = document.getElementById('config-notif-file');
+    if (soundSel) {
+        soundSel.value = getNotifSoundChoice();
+        soundSel.onchange = handleNotifSoundSelect;
+    }
+    if (soundWrap) soundWrap.classList.toggle('hidden', (soundSel?.value || 'default') !== 'custom');
+    if (soundInfo) soundInfo.classList.toggle('hidden', !getCustomSoundData());
+    if (fileInput) fileInput.onchange = () => handleNotifFileChange(fileInput);
+    pendingCustomSoundData = null;
+
     paintKeyFields();
     updateAiStatusBadge();
     document.getElementById('modal-config').classList.remove('hidden');
@@ -600,6 +668,7 @@ async function submitConfig() {
 
     const typedKey = groqKeyInput ? groqKeyInput.value.trim() : '';
     const model = groqModelSelect ? groqModelSelect.value : 'auto';
+    const soundSel = document.getElementById('config-notif-sound')?.value || 'default';
     const finalName = name || appState.user.name;
 
     try {
@@ -609,6 +678,22 @@ async function submitConfig() {
         showToast(err.message || 'Não foi possível salvar a chave de IA.');
         return;
     }
+
+    // Salva preferência de som local + servidor
+    try {
+        localStorage.setItem('axis_notif_sound', soundSel);
+        if (soundSel === 'custom' && pendingCustomSoundData) {
+            localStorage.setItem('axis_notif_sound_custom', pendingCustomSoundData);
+        } else if (soundSel !== 'custom') {
+            // mantém custom salvo mas não usa
+        }
+        const payload = { notif_sound: soundSel };
+        if (soundSel === 'custom' && pendingCustomSoundData) payload.notif_sound_custom = pendingCustomSoundData;
+        await apiUpdateProfile(finalName, payload);
+        appState.user.notif_sound = soundSel;
+        if (pendingCustomSoundData) appState.user.notif_sound_custom = pendingCustomSoundData;
+        pendingCustomSoundData = null;
+    } catch (e) { console.warn('Falha ao salvar som:', e); }
 
     if (groqKeyInput) groqKeyInput.value = '';
 
@@ -1626,7 +1711,7 @@ function togglePomo() {
             } else {
                 clearInterval(pomoInterval);
                 pomoInterval = null;
-                playSyntheticBeep();
+                playNotifSound().catch(()=>playSyntheticBeep());
 
                 if (pomoCurrentMode === 'foco') {
                     logPomodoroSession(25);
@@ -1776,6 +1861,10 @@ window.resetPomo = resetPomo;
 window.scrollToAuth = scrollToAuth;
 window.scrollToSection = scrollToSection;
 window.initPushNotifications = initPushNotifications;
+window.previewNotifSound = previewNotifSound;
+window.handleNotifSoundSelect = handleNotifSoundSelect;
+window.handleNotifFileChange = handleNotifFileChange;
+window.playNotifSound = playNotifSound;
 
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('chat-menu');

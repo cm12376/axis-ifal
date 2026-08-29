@@ -49,6 +49,14 @@ export default async function handler(req, res) {
                     ? body.groq_model
                     : null;
 
+                const VALID_SOUNDS = ['default', 'soft', 'bell', 'custom'];
+                const notifSound = typeof body.notif_sound === 'string' && VALID_SOUNDS.includes(body.notif_sound)
+                    ? body.notif_sound
+                    : null;
+                const notifCustom = typeof body.notif_sound_custom === 'string' && body.notif_sound_custom.startsWith('data:audio')
+                    ? body.notif_sound_custom.slice(0, 200000)
+                    : null;
+
                 const result = await pool.query(
                     `UPDATE public.profiles
                      SET full_name = $1,
@@ -57,8 +65,9 @@ export default async function handler(req, res) {
                          groq_api_key_enc = CASE WHEN $4::boolean THEN $5 ELSE groq_api_key_enc END,
                          groq_key_hint    = CASE WHEN $4::boolean THEN $6 ELSE groq_key_hint END,
                          groq_model = COALESCE($7, groq_model),
+                         notif_sound = COALESCE($8, notif_sound),
                          updated_at = NOW()
-                     WHERE id = $8 RETURNING *`,
+                     WHERE id = $9 RETURNING *`,
                     [
                         body.full_name || body.name || user.full_name,
                         body.course,
@@ -67,9 +76,14 @@ export default async function handler(req, res) {
                         keyEnc ?? null,
                         keyHint ?? null,
                         model,
+                        notifSound,
                         user.id
                     ]
                 );
+                // Salva som customizado separado se enviado (evita coluna muito grande no UPDATE principal)
+                if (notifCustom && notifSound === 'custom') {
+                    await pool.query(`UPDATE public.profiles SET notif_sound_custom=$1 WHERE id=$2`, [notifCustom, user.id]);
+                }
                 return ok(res, sanitizeUser(result.rows[0]));
             }
             default:

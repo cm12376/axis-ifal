@@ -1504,6 +1504,33 @@
                         <p class="text-[9px] text-slate-400 mt-1">Selecione o modelo LLM da Groq que responderá às suas dúvidas no chat.</p>
                     </div>
                 </div>
+
+                <!-- Som das Notificações (PWA) -->
+                <div class="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-emerald-600"></i> Som das Notificações
+                    </label>
+                    <div>
+                        <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Som padrão</label>
+                        <div class="flex gap-2">
+                            <select id="config-notif-sound" class="flex-1 px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                                <option value="default">Padrão (Beep 880Hz)</option>
+                                <option value="soft">Suave (659Hz)</option>
+                                <option value="bell">Sino (1046Hz)</option>
+                                <option value="custom">Customizado (seu arquivo)</option>
+                            </select>
+                            <button type="button" onclick="previewNotifSound()" class="px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-1">
+                                <i data-lucide="play" class="w-3.5 h-3.5"></i> Testar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="config-custom-sound-wrap" class="hidden">
+                        <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Arquivo customizado (mp3/wav/ogg, até 500KB)</label>
+                        <input type="file" id="config-notif-file" accept="audio/*" class="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 dark:file:bg-emerald-950/40 dark:file:text-emerald-400">
+                        <p id="config-notif-custom-info" class="text-[9px] text-slate-400 mt-1 hidden">Custom carregado. Em segundo plano/tela bloqueada o sistema usa o som padrão.</p>
+                    </div>
+                    <p class="text-[9px] text-slate-400">Escolha o som das notificações Pomodoro e de provas. Custom funciona em primeiro plano; em segundo plano o sistema usa o som padrão.</p>
+                </div>
             </div>
 
             <div class="flex gap-2 justify-between mt-6">
