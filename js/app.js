@@ -205,11 +205,40 @@ async function initPushNotifications() {
     } catch (e) { console.warn('Push init falhou:', e); }
 }
 
-async function showLocalNotification(title, body) {
+async function showLocalNotification(title, body, opts = {}) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     try {
         const reg = await navigator.serviceWorker.ready;
-        await reg.showNotification(title, { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', vibrate: [200, 100, 200] });
+        await reg.showNotification(title, { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', vibrate: [200, 100, 200], ...opts });
+    } catch {}
+}
+
+async function showPomoNotification(remainingSec, mode) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const mm = String(Math.floor(remainingSec / 60)).padStart(2, '0');
+    const ss = String(remainingSec % 60).padStart(2, '0');
+    const isPaused = String(mode).includes('pausado');
+    const baseMode = String(mode).replace(' (pausado)', '');
+    const label = isPaused ? `⏸️ Pausado ${mm}:${ss}` : `⏱️ ${baseMode === 'foco' ? 'Foco' : 'Pausa'} ${mm}:${ss}`;
+    const body = isPaused ? 'Pomodoro pausado — retome quando quiser.' : baseMode === 'foco' ? 'Pomodoro em andamento — mantenha o foco!' : 'Pausa em andamento — relaxe e respire.';
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(label, {
+            body,
+            icon: '/icons/icon-192.png',
+            badge: '/icons/icon-192.png',
+            tag: 'axis-pomo',
+            renotify: false,
+            silent: true,
+            requireInteraction: true
+        });
+    } catch {}
+}
+async function closePomoNotification() {
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const notifs = await reg.getNotifications({ tag: 'axis-pomo' });
+        notifs.forEach(n => n.close());
     } catch {}
 }
 
@@ -1703,14 +1732,21 @@ function togglePomo() {
         clearInterval(pomoInterval);
         pomoInterval = null;
         btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i> Retomar`;
+        // Atualiza notificação para estado pausado
+        showPomoNotification(pomoTime, pomoCurrentMode + ' (pausado)');
     } else {
+        // Mostra notificação persistente com cronômetro
+        showPomoNotification(pomoTime, pomoCurrentMode);
         pomoInterval = setInterval(() => {
             if (pomoTime > 0) {
                 pomoTime--;
                 updatePomoUI();
+                // Atualiza notificação a cada segundo (silent, mesmo tag)
+                showPomoNotification(pomoTime, pomoCurrentMode);
             } else {
                 clearInterval(pomoInterval);
                 pomoInterval = null;
+                closePomoNotification();
                 playNotifSound().catch(()=>playSyntheticBeep());
 
                 if (pomoCurrentMode === 'foco') {
@@ -1722,6 +1758,7 @@ function togglePomo() {
                     pomoCurrentMode = 'pausa';
                     pomoTime = 5 * 60;
                     document.getElementById('pomo-label').innerText = "Pausa";
+                    showPomoNotification(pomoTime, 'pausa');
                 } else {
                     showToast("Pausa concluída! De volta aos estudos.");
                     showLocalNotification('⏰ Pausa encerrada', 'De volta ao foco por 25 minutos!');
@@ -1729,6 +1766,7 @@ function togglePomo() {
                     pomoCurrentMode = 'foco';
                     pomoTime = 25 * 60;
                     document.getElementById('pomo-label').innerText = "Trabalho";
+                    closePomoNotification();
                 }
                 updatePomoUI();
                 btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i> Iniciar`;
@@ -1742,6 +1780,7 @@ function togglePomo() {
 function resetPomo() {
     clearInterval(pomoInterval);
     pomoInterval = null;
+    closePomoNotification();
     pomoCurrentMode = 'foco';
     pomoTime = 25 * 60;
     document.getElementById('pomo-label').innerText = "Trabalho";
