@@ -213,6 +213,17 @@ async function showLocalNotification(title, body, opts = {}) {
     } catch {}
 }
 
+function getPomoMotivationalBody(remainingSec, baseMode) {
+    if (baseMode !== 'foco') return 'Pausa em andamento — relaxe e respire. ☕';
+    if (remainingSec === 600) return 'Vamos lá, falta pouco!! 💪 10 minutos restantes.';
+    if (remainingSec <= 300 && remainingSec > 240) return 'Falta apenas 5 MINUTOS! 🔥 Você consegue!';
+    if (remainingSec <= 240 && remainingSec > 180) return 'FALTA 4 MINUTOS! ⏳ Reta intermediária!';
+    if (remainingSec <= 180 && remainingSec > 120) return 'FALTA 3 MINUTOS! ⚡ Quase lá!';
+    if (remainingSec <= 120 && remainingSec > 60) return 'FALTA 2 MINUTOS! 🚀 Aperte o ritmo!';
+    if (remainingSec <= 60 && remainingSec > 30) return 'FALTA 1 MINUTO - reta final! 🎯 Não pare agora!';
+    if (remainingSec <= 30 && remainingSec > 0) return `Falta ${remainingSec}s — último sprint! 🏁`;
+    return 'Pomodoro em andamento — mantenha o foco! 📚';
+}
 async function showPomoNotification(remainingSec, mode) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const mm = String(Math.floor(remainingSec / 60)).padStart(2, '0');
@@ -220,7 +231,7 @@ async function showPomoNotification(remainingSec, mode) {
     const isPaused = String(mode).includes('pausado');
     const baseMode = String(mode).replace(' (pausado)', '');
     const label = isPaused ? `⏸️ Pausado ${mm}:${ss}` : `⏱️ ${baseMode === 'foco' ? 'Foco' : 'Pausa'} ${mm}:${ss}`;
-    const body = isPaused ? 'Pomodoro pausado — retome quando quiser.' : baseMode === 'foco' ? 'Pomodoro em andamento — mantenha o foco!' : 'Pausa em andamento — relaxe e respire.';
+    const body = isPaused ? 'Pomodoro pausado — retome quando quiser.' : getPomoMotivationalBody(remainingSec, baseMode);
     try {
         const reg = await navigator.serviceWorker.ready;
         await reg.showNotification(label, {
