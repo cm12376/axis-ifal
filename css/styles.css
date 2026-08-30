@@ -253,28 +253,3 @@ html {
     background: none;
     padding: 0;
 }
-
-/* Skeleton Loaders - Pulso suave para Kanban e gráficos */
-.skeleton {
-    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
-    background-size: 400% 100%;
-    animation: skeleton-shimmer 1.4s ease infinite;
-    border-radius: 0.5rem;
-}
-.dark .skeleton {
-    background: linear-gradient(90deg, #1e293b 25%, #334155 37%, #1e293b 63%);
-    background-size: 400% 100%;
-}
-@keyframes skeleton-shimmer {
-    0% { background-position: 100% 50%; }
-    100% { background-position: 0 50%; }
-}
-.skeleton-card {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.75rem;
-    padding: 1rem;
-}
-.dark .skeleton-card { background: #0f172a; border-color: #1e293b; }
-.skeleton-line { height: 0.7rem; border-radius: 9999px; }
-.skeleton-chart { height: 220px; border-radius: 1rem; }
