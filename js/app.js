@@ -750,7 +750,8 @@ async function submitConfig() {
 
 function updateUserLabels() {
     const name = appState.user.name || 'Estudante Novato';
-    document.getElementById('userNameLabel').innerText = name;
+    const el = document.getElementById('userNameLabel');
+    if (el) { el.innerText = name; el.classList.remove('skeleton'); }
     document.getElementById('welcome-name').innerText = name;
 
     const parts = name.split(' ');
@@ -1160,6 +1161,7 @@ function renderGradesSection() {
     simPerformance();
 }
 
+function hideChartSkeleton(id) { document.getElementById(id)?.classList.add('hidden'); }
 function renderPerformanceChart() {
     const canvas = document.getElementById('chart-performance');
     if (!canvas) return;
@@ -1210,6 +1212,7 @@ function renderPerformanceChart() {
             }
         });
     }
+    hideChartSkeleton('skeleton-chart-performance');
 }
 
 // --- RENDERIZAÇÃO DAS MÉTRICAS DE ESTUDO (POMODORO) ---
@@ -1281,6 +1284,7 @@ function renderMetricsSubjectChart(sessions) {
             }
         });
     }
+    hideChartSkeleton('skeleton-chart-metrics-subject');
 }
 
 function renderMetricsDailyChart(sessions) {
@@ -1330,6 +1334,7 @@ function renderMetricsDailyChart(sessions) {
             }
         });
     }
+    hideChartSkeleton('skeleton-chart-metrics-daily');
 }
 
 function simPerformance() {
@@ -1864,7 +1869,7 @@ function formatDateDisplay(dateStr) {
 function setHeaderDate() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const dateEl = document.getElementById('topbar-date');
-    if (dateEl) dateEl.innerText = new Date().toLocaleDateString('pt-BR', options);
+    if (dateEl) { dateEl.innerText = new Date().toLocaleDateString('pt-BR', options); dateEl.classList.remove('skeleton'); }
 }
 
 // --- BIND DE FUNÇÕES AO WINDOW ---
