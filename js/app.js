@@ -214,7 +214,7 @@ async function showLocalNotification(title, body, opts = {}) {
 }
 
 function getPomoMotivationalBody(remainingSec, baseMode) {
-    if (baseMode !== 'foco') return 'Pausa em andamento — relaxe e respire. ☕';
+    if (baseMode !== 'foco') return 'Descansa campeão 🏆 — aproveite a pausa de 5 minutos!';
     if (remainingSec === 600) return 'Vamos lá, falta pouco!! 💪 10 minutos restantes.';
     if (remainingSec <= 300 && remainingSec > 240) return 'Falta apenas 5 MINUTOS! 🔥 Você consegue!';
     if (remainingSec <= 240 && remainingSec > 180) return 'FALTA 4 MINUTOS! ⏳ Reta intermediária!';
