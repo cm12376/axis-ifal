@@ -1430,6 +1430,56 @@ function autoResizeChatInput() {
     ta.style.height = Math.min(ta.scrollHeight, 128) + 'px';
 }
 
+// --- ENTRADA POR VOZ (Web Speech API) ---
+let voiceRecognition = null;
+let voiceActive = false;
+
+function toggleVoiceInput() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { showToast('Seu navegador não suporta reconhecimento de voz.'); return; }
+    if (voiceActive && voiceRecognition) { voiceRecognition.stop(); return; }
+    const rec = new SpeechRecognition();
+    rec.lang = 'pt-BR';
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    voiceRecognition = rec;
+    voiceActive = true;
+    const btn = document.getElementById('chat-mic-btn');
+    if (btn) { btn.classList.add('bg-rose-100','text-rose-600','animate-pulse'); btn.title = 'Ouvindo... clique para parar'; }
+    const input = document.getElementById('chat-input');
+    let finalText = input.value ? input.value + ' ' : '';
+    rec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalText += t + ' ';
+            else interim += t;
+        }
+        input.value = (finalText + interim).trimStart();
+        autoResizeChatInput();
+    };
+    rec.onerror = (e) => {
+        showToast(e.error === 'not-allowed' ? 'Permissão do microfone negada.' : 'Erro no reconhecimento de voz: ' + e.error);
+        stopVoiceUI();
+    };
+    rec.onend = () => {
+        if (voiceActive) {
+            input.value = finalText.trim();
+            autoResizeChatInput();
+            input.focus();
+        }
+        stopVoiceUI();
+    };
+    try { rec.start(); } catch { stopVoiceUI(); }
+}
+function stopVoiceUI() {
+    voiceActive = false;
+    voiceRecognition = null;
+    const btn = document.getElementById('chat-mic-btn');
+    if (btn) { btn.classList.remove('bg-rose-100','text-rose-600','animate-pulse'); btn.title = 'Falar no microfone'; if (window.lucide) lucide.createIcons(); }
+}
+
 function handleChatFile(input) {
     const file = input.files?.[0];
     if (!file) return;
@@ -1901,6 +1951,8 @@ window.handleChatFile = handleChatFile;
 window.removeChatAttachment = removeChatAttachment;
 window.stopChatGeneration = stopChatGeneration;
 window.handleChatKey = handleChatKey;
+window.autoResizeChatInput = autoResizeChatInput;
+window.toggleVoiceInput = toggleVoiceInput;
 window.toggleChatMenu = toggleChatMenu;
 window.handleChatMenuPick = handleChatMenuPick;
 window.clearChatMode = clearChatMode;
