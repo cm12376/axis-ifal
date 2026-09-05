@@ -1602,7 +1602,7 @@ async function sendChatMessage() {
         wrapper.className = 'flex gap-3 max-w-2xl';
         wrapper.innerHTML = `
             <div class="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0">IA</div>
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm px-5 py-4 text-sm text-slate-800 dark:text-slate-200">
+            <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
                 <div class="leading-relaxed chat-md streaming-content"></div>
             </div>
         `;
@@ -1703,15 +1703,12 @@ function appendChatMessage(text, sender, isHtml = false) {
 
     const initial = sender === 'user' ? appState.user.name.substring(0,2).toUpperCase() : 'IA';
     const avatarBg = sender === 'user' ? 'bg-emerald-600' : 'bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
-    const bubble = sender === 'user'
-        ? 'bg-emerald-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 text-sm shadow-sm'
-        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm px-5 py-4 text-sm text-slate-800 dark:text-slate-200';
 
     wrapper.innerHTML = `
         <div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center text-white text-xs font-bold shrink-0">
             ${initial}
         </div>
-        <div class="${bubble}">
+        <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
             <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
         </div>
     `;
