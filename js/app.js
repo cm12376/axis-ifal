@@ -12,6 +12,7 @@ import {
     apiCreateTask,
     apiUpdateTaskStatus,
     apiDeleteTask,
+    syncPendingTasks,
     apiFetchEvents,
     apiCreateEvent,
     apiDeleteEvent,
@@ -403,6 +404,10 @@ async function initApp() {
     initPushNotifications().catch(() => {});
     updateAiStatusBadge();
     refreshAiStatus();
+    // Tenta sincronizar tarefas pendentes do modo offline
+    if (navigator.onLine) syncPendingTasks().then(n => { if (n) showToast(`${n} tarefa(s) sincronizada(s) com o servidor.`); }).catch(()=>{});
+    window.addEventListener('online', () => syncPendingTasks().then(n => { if (n) { showToast(`${n} tarefa(s) sincronizada(s)!`); renderTasks(); renderDashboard(); } }).catch(()=>{}));
+    window.addEventListener('offline', () => showToast('Você está offline — Kanban disponível localmente.'));
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
@@ -858,8 +863,9 @@ function renderTasks() {
 
         tCard.innerHTML = `
             <div class="flex items-center justify-between">
-                <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${badgeColor}">
-                    ${t.priority}
+                <span class="flex items-center gap-1">
+                    <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${badgeColor}">${t.priority}</span>
+                    ${t._pendingSync ? '<span class="text-[9px] text-amber-600" title="Pendente de sincronização">● offline</span>' : ''}
                 </span>
                 <div class="flex gap-1">
                     ${st !== 'done' ? `

@@ -50,6 +50,11 @@ export default defineConfig({
                         urlPattern: /^https:\/\/cdnjs\.cloudflare\.com\/.*/i,
                         handler: 'StaleWhileRevalidate',
                         options: { cacheName: 'cdnjs', expiration: { maxEntries: 20, maxAgeSeconds: 86400 } }
+                    },
+                    {
+                        urlPattern: /\/api\/tasks.*/i,
+                        handler: 'NetworkFirst',
+                        options: { cacheName: 'api-tasks', networkTimeoutSeconds: 4, expiration: { maxEntries: 20, maxAgeSeconds: 86400 } }
                     }
                 ]
             }

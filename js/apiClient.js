@@ -67,24 +67,79 @@ export async function apiGetCurrentUser() {
     return request('/auth/me');
 }
 
-// === TAREFAS ===
+// === TAREFAS (offline-first: cache + fila de sync) ===
+const SYNC_QUEUE_KEY = 'axis_sync_queue';
+
+function getSyncQueue() {
+    try { return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]'); } catch { return []; }
+}
+function pushSyncQueue(op) {
+    const q = getSyncQueue();
+    q.push({ ...op, _ts: Date.now() });
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q));
+}
+export async function syncPendingTasks() {
+    const queue = getSyncQueue();
+    if (!queue.length || !navigator.onLine) return 0;
+    let synced = 0;
+    const remaining = [];
+    for (const op of queue) {
+        try {
+            if (op.type === 'create') {
+                const created = await request('/tasks', { method: 'POST', body: JSON.stringify(op.data) });
+                // Substitui o id temporário no cache local
+                const local = getLocalData();
+                const idx = local.tasks.findIndex(t => String(t.id) === String(op.tempId));
+                if (idx !== -1) { local.tasks[idx] = created; saveLocalData(local); }
+            } else if (op.type === 'update') {
+                await request(`/tasks/${op.id}`, { method: 'PATCH', body: JSON.stringify({ status: op.status }) });
+            } else if (op.type === 'delete') {
+                await request(`/tasks/${op.id}`, { method: 'DELETE' });
+            }
+            synced++;
+        } catch (e) {
+            if (e.status === 401) throw e;
+            remaining.push(op);
+        }
+    }
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(remaining));
+    if (synced) {
+        try { const fresh = await request('/tasks'); const local = getLocalData(); local.tasks = fresh; saveLocalData(local); } catch {}
+    }
+    return synced;
+}
+if (typeof window !== 'undefined') window.addEventListener('online', () => syncPendingTasks().catch(()=>{}));
+
 export async function apiFetchTasks() {
-    try { return await request('/tasks'); }
-    catch (e) { if (e.status === 401) throw e; console.warn('fallback', e); return getLocalData().tasks; }
+    try {
+        const tasks = await request('/tasks');
+        const local = getLocalData(); local.tasks = tasks; saveLocalData(local);
+        return tasks;
+    } catch (e) {
+        if (e.status === 401) throw e;
+        // Offline: retorna cache local (sempre disponível)
+        return getLocalData().tasks;
+    }
 }
 
 export async function apiCreateTask(taskData) {
+    const payload = {
+        title: taskData.title, category: taskData.category,
+        date: taskData.date || taskData.due_date, priority: taskData.priority,
+        status: taskData.status || 'todo'
+    };
     try {
-        return await request('/tasks', { method: 'POST', body: JSON.stringify({
-            title: taskData.title, category: taskData.category,
-            date: taskData.date || taskData.due_date, priority: taskData.priority,
-            status: taskData.status || 'todo'
-        }) });
+        const created = await request('/tasks', { method: 'POST', body: JSON.stringify(payload) });
+        const local = getLocalData(); local.tasks.unshift(created); saveLocalData(local);
+        return created;
     } catch (e) {
+        if (e.status === 401) throw e;
         const local = getLocalData();
-        const newTask = { id: String(Date.now()), title: taskData.title, category: taskData.category, due_date: taskData.date || taskData.due_date, priority: taskData.priority, status: taskData.status || 'todo' };
+        const tempId = `local-${Date.now()}`;
+        const newTask = { id: tempId, title: payload.title, category: payload.category, due_date: payload.date, priority: payload.priority, status: payload.status, _pendingSync: true };
         local.tasks.unshift(newTask);
         saveLocalData(local);
+        pushSyncQueue({ type: 'create', data: payload, tempId });
         return newTask;
     }
 }
@@ -92,21 +147,31 @@ export async function apiCreateTask(taskData) {
 export async function apiUpdateTaskStatus(id, newStatus) {
     try {
         await request(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+        const local = getLocalData(); const t = local.tasks.find(i => String(i.id) === String(id)); if (t) { t.status = newStatus; delete t._pendingSync; saveLocalData(local); }
     } catch (e) {
+        if (e.status === 401) throw e;
         const local = getLocalData();
         const t = local.tasks.find(i => String(i.id) === String(id));
-        if (t) t.status = newStatus;
-        saveLocalData(local);
+        if (t) { t.status = newStatus; t._pendingSync = true; saveLocalData(local); }
+        // Se já existe um create pendente para este id, atualiza o status lá
+        const q = getSyncQueue(); const c = q.find(o => o.type === 'create' && String(o.tempId) === String(id)); if (c) c.data.status = newStatus;
+        else pushSyncQueue({ type: 'update', id, status: newStatus });
+        localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(getSyncQueue()));
     }
     return true;
 }
 
 export async function apiDeleteTask(id) {
-    try { await request(`/tasks/${id}`, { method: 'DELETE' }); }
+    try { await request(`/tasks/${id}`, { method: 'DELETE' }); const local = getLocalData(); local.tasks = local.tasks.filter(t => String(t.id) !== String(id)); saveLocalData(local); }
     catch (e) {
+        if (e.status === 401) throw e;
         const local = getLocalData();
         local.tasks = local.tasks.filter(t => String(t.id) !== String(id));
         saveLocalData(local);
+        // Cancela create pendente se existir, senão enfileira delete
+        let q = getSyncQueue(); const idx = q.findIndex(o => o.type === 'create' && String(o.tempId) === String(id));
+        if (idx !== -1) { q.splice(idx, 1); localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q)); }
+        else { pushSyncQueue({ type: 'delete', id }); }
     }
     return true;
 }
