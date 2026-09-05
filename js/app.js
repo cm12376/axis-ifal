@@ -1676,17 +1676,17 @@ function setChatStopBtnVisible(visible) {
     const icon = document.getElementById('chat-send-icon');
     if (!btn) return;
     if (visible) {
-        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+        btn.classList.remove('bg-violet-500', 'hover:bg-violet-600');
         btn.classList.add('bg-rose-500', 'hover:bg-rose-600');
         btn.onclick = stopChatGeneration;
         btn.title = 'Parar geração';
         icon.setAttribute('data-lucide', 'square');
     } else {
         btn.classList.remove('bg-rose-500', 'hover:bg-rose-600');
-        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+        btn.classList.add('bg-violet-500', 'hover:bg-violet-600');
         btn.onclick = sendChatMessage;
         btn.title = 'Enviar';
-        icon.setAttribute('data-lucide', 'send');
+        icon.setAttribute('data-lucide', 'arrow-up');
     }
     if (window.lucide) lucide.createIcons();
 }
