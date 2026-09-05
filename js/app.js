@@ -1601,7 +1601,6 @@ async function sendChatMessage() {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex gap-3 max-w-2xl';
         wrapper.innerHTML = `
-            <div class="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0">IA</div>
             <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
                 <div class="leading-relaxed chat-md streaming-content"></div>
             </div>
@@ -1699,20 +1698,23 @@ function stopChatGeneration() {
 function appendChatMessage(text, sender, isHtml = false) {
     const chatBox = document.getElementById('chat-box');
     const wrapper = document.createElement('div');
-    wrapper.className = `flex gap-3 max-w-2xl ${sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`;
-
-    const initial = sender === 'user' ? appState.user.name.substring(0,2).toUpperCase() : 'IA';
-    const avatarBg = sender === 'user' ? 'bg-emerald-600' : 'bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
-
-    wrapper.innerHTML = `
-        <div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center text-white text-xs font-bold shrink-0">
-            ${initial}
-        </div>
-        <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
-            <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
-        </div>
-    `;
-
+    if (sender === 'user') {
+        wrapper.className = 'flex gap-3 max-w-2xl ml-auto flex-row-reverse';
+        const initial = appState.user.name.substring(0,2).toUpperCase();
+        wrapper.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">${initial}</div>
+            <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200 text-right">
+                <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
+            </div>
+        `;
+    } else {
+        wrapper.className = 'flex gap-3 max-w-2xl';
+        wrapper.innerHTML = `
+            <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
+                <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
+            </div>
+        `;
+    }
     chatBox.appendChild(wrapper);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -1722,13 +1724,10 @@ function clearChat() {
     apiClearChatHistory().catch(() => {});
     const box = document.getElementById('chat-box');
     box.innerHTML = `
-        <div class="flex gap-3 max-w-xl">
-            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                IA
-            </div>
-            <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 text-xs text-slate-700 dark:text-slate-300">
-                <p class="font-extrabold text-slate-800 dark:text-white text-[10px] mb-1">Tutor Virtual do IFAL</p>
-                Histórico do tutor redefinido. Como posso ajudar com os seus estudos hoje?
+        <div class="flex gap-3 max-w-2xl">
+            <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
+                <p class="font-extrabold text-slate-800 dark:text-white text-xs mb-1">Tutor Virtual do IFAL</p>
+                <p class="text-sm">Histórico do tutor redefinido. Como posso ajudar com os seus estudos hoje?</p>
             </div>
         </div>
     `;
