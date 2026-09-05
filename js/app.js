@@ -1599,11 +1599,10 @@ async function sendChatMessage() {
         if (streamEl) return streamEl;
         const chatBox = document.getElementById('chat-box');
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex gap-3 max-w-xl';
+        wrapper.className = 'flex gap-3 max-w-2xl';
         wrapper.innerHTML = `
-            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">IA</div>
-            <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl rounded-tl-none p-4 text-xs shadow-xs">
-                <p class="font-bold text-[9px] opacity-75 mb-1">Tutor Virtual IFAL</p>
+            <div class="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0">IA</div>
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm px-5 py-4 text-sm text-slate-800 dark:text-slate-200">
                 <div class="leading-relaxed chat-md streaming-content"></div>
             </div>
         `;
@@ -1700,18 +1699,19 @@ function stopChatGeneration() {
 function appendChatMessage(text, sender, isHtml = false) {
     const chatBox = document.getElementById('chat-box');
     const wrapper = document.createElement('div');
-    wrapper.className = `flex gap-3 max-w-xl ${sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`;
+    wrapper.className = `flex gap-3 max-w-2xl ${sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`;
 
-    const senderName = sender === 'user' ? appState.user.name : 'Tutor Virtual IFAL';
-    const bg = sender === 'user' ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-tl-none';
     const initial = sender === 'user' ? appState.user.name.substring(0,2).toUpperCase() : 'IA';
+    const avatarBg = sender === 'user' ? 'bg-emerald-600' : 'bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
+    const bubble = sender === 'user'
+        ? 'bg-emerald-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 text-sm shadow-sm'
+        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm px-5 py-4 text-sm text-slate-800 dark:text-slate-200';
 
     wrapper.innerHTML = `
-        <div class="w-8 h-8 rounded-full bg-slate-800 dark:bg-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
+        <div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center text-white text-xs font-bold shrink-0">
             ${initial}
         </div>
-        <div class="${bg} rounded-2xl p-4 text-xs shadow-xs">
-            <p class="font-bold text-[9px] opacity-75 mb-1">${senderName}</p>
+        <div class="${bubble}">
             <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
         </div>
     `;
