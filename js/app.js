@@ -1587,7 +1587,7 @@ async function sendChatMessage() {
     input.style.height = 'auto';
     appendChatMessage(sentMsg, 'user');
 
-    // Pensando... logo abaixo da mensagem do usuário
+    // Pensando... logo abaixo da mensagem do usuário (com cronômetro)
     const chatBox = document.getElementById('chat-box');
     const thinkingEl = document.createElement('div');
     thinkingEl.id = 'thinking-bubble';
@@ -1600,11 +1600,17 @@ async function sendChatMessage() {
                 <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
                 <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
             </span>
+            <span class="thinking-timer text-xs text-slate-400">0.0s</span>
         </div>
     `;
     chatBox.appendChild(thinkingEl);
     chatBox.scrollTop = chatBox.scrollHeight;
     setChatStopBtnVisible(true);
+    const thinkingStart = Date.now();
+    const thinkingTimer = setInterval(() => {
+        const el = thinkingEl.querySelector('.thinking-timer');
+        if (el) el.textContent = `${((Date.now() - thinkingStart) / 1000).toFixed(1)}s`;
+    }, 100);
 
     // Cria bolha vazia para stream e atualiza incrementalmente
     let streamEl = null;
@@ -1612,6 +1618,7 @@ async function sendChatMessage() {
     let streamTimer = null;
     function ensureStreamBubble() {
         if (streamEl) return streamEl;
+        clearInterval(thinkingTimer);
         thinkingEl.remove();
         const wrapper = document.createElement('div');
         wrapper.className = 'flex gap-3 max-w-2xl';
@@ -1650,21 +1657,35 @@ async function sendChatMessage() {
         chatHistory.push({ role: 'assistant', content: response });
         apiSaveChatMessage('user', sentMsg).catch(() => {});
         apiSaveChatMessage('assistant', response).catch(() => {});
-        thinkingEl.remove();
+        clearInterval(thinkingTimer);
+        const elapsed = ((Date.now() - thinkingStart) / 1000).toFixed(1);
+        if (thinkingEl.parentNode) thinkingEl.remove();
         if (streamEl) {
             if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
             await ensureHighlighter();
             const html = await renderMarkdown(response);
             const wrapper = streamEl.closest('.flex');
             wrapper.querySelector('.chat-md').innerHTML = html;
+            const badge = document.createElement('div');
+            badge.className = 'text-[10px] text-slate-400 mt-2';
+            badge.textContent = `Pensou por ${elapsed}s`;
+            wrapper.querySelector('.flex-1').appendChild(badge);
             if (window.lucide) lucide.createIcons();
         } else {
             await ensureHighlighter();
             const html = await renderMarkdown(response);
             appendChatMessage(html, 'ai', true);
+            const last = document.getElementById('chat-box').lastElementChild;
+            if (last) {
+                const badge = document.createElement('div');
+                badge.className = 'text-[10px] text-slate-400 mt-2';
+                badge.textContent = `Pensou por ${elapsed}s`;
+                last.querySelector('.flex-1')?.appendChild(badge);
+            }
         }
     } catch (err) {
-        thinkingEl.remove();
+        clearInterval(thinkingTimer);
+        if (thinkingEl.parentNode) thinkingEl.remove();
         if (err.name === 'AbortError') {
             if (streamEl && streamRaw) {
                 const wrapper = streamEl.closest('.flex');
