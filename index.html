@@ -1252,14 +1252,24 @@
                             <p class="text-xs text-slate-500">Tire dúvidas sobre regras do IFAL, SIGAA, Pomodoro e roteiros de estudo.</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="openConfigModal()" class="text-xs text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 flex items-center gap-1 transition">
+                            <button onclick="clearChat()" title="Nova Conversa" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nova Conversa
+                            </button>
+                            <button onclick="toggleChatSearch()" title="Procurar Conversa" class="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i> Procurar Conversa
+                            </button>
+                            <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+                            <button onclick="openConfigModal()" class="hidden sm:flex text-xs text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 items-center gap-1 transition">
                                 <i data-lucide="settings" class="w-4 h-4"></i> Configurar IA
                             </button>
-                            <span class="text-slate-300 dark:text-slate-700">|</span>
-                            <button onclick="clearChat()" class="text-xs text-rose-500 hover:underline flex items-center gap-1">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Chat
-                            </button>
                         </div>
+                    </div>
+                    <div id="chat-search-bar" class="hidden">
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-search-input" oninput="filterChatHistory(this.value)" placeholder="Buscar em conversas salvas (ex: fotossíntese, 2ª chamada)..." class="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                            <button onclick="toggleChatSearch()" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800">Fechar</button>
+                        </div>
+                        <p id="chat-search-info" class="text-[10px] text-slate-400 mt-1 hidden"></p>
                     </div>
 
                     <div class="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col overflow-hidden min-h-[350px]">

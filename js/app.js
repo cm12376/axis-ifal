@@ -1747,6 +1747,44 @@ function setChatStopBtnVisible(visible) {
     if (window.lucide) lucide.createIcons();
 }
 
+function toggleChatSearch() {
+    const bar = document.getElementById('chat-search-bar');
+    const input = document.getElementById('chat-search-input');
+    const info = document.getElementById('chat-search-info');
+    bar.classList.toggle('hidden');
+    if (!bar.classList.contains('hidden')) { input.focus(); }
+    else { input.value = ''; info.classList.add('hidden'); filterChatHistory(''); }
+}
+function filterChatHistory(q) {
+    const box = document.getElementById('chat-box');
+    const info = document.getElementById('chat-search-info');
+    const query = q.trim().toLowerCase();
+    if (!query) {
+        // Restaura histórico completo
+        box.innerHTML = '';
+        chatHistory.forEach(m => {
+            const isUser = m.role === 'user';
+            appendChatMessage(m.content, isUser ? 'user' : 'ai');
+        });
+        info.classList.add('hidden');
+        return;
+    }
+    const filtered = chatHistory.filter(m => m.content.toLowerCase().includes(query));
+    box.innerHTML = '';
+    if (!filtered.length) {
+        box.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Nenhuma conversa encontrada para "${escapeHtml(q)}".</p>`;
+        info.textContent = '0 resultados';
+        info.classList.remove('hidden');
+        return;
+    }
+    filtered.forEach(m => {
+        const isUser = m.role === 'user';
+        appendChatMessage(m.content, isUser ? 'user' : 'ai');
+    });
+    info.textContent = `${filtered.length} resultado(s) para "${q}"`;
+    info.classList.remove('hidden');
+}
+
 function stopChatGeneration() {
     if (chatAbortController) {
         chatAbortController.abort();
@@ -1999,6 +2037,8 @@ window.setMaterialFilter = setMaterialFilter;
 window.simPerformance = simPerformance;
 window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
+window.toggleChatSearch = toggleChatSearch;
+window.filterChatHistory = filterChatHistory;
 window.handleChatFile = handleChatFile;
 window.removeChatAttachment = removeChatAttachment;
 window.stopChatGeneration = stopChatGeneration;
