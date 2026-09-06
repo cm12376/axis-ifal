@@ -411,14 +411,15 @@ async function initApp() {
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
-        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions] = await Promise.all([
+        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions, chatRows] = await Promise.all([
             apiFetchTasks(),
             apiFetchEvents(),
             apiFetchMaterials(),
             apiFetchNotifications(),
             apiFetchGrades(),
             apiFetchProfile(),
-            apiFetchPomodoroSessions()
+            apiFetchPomodoroSessions(),
+            apiFetchChatHistory().catch(()=>[])
         ]);
 
         appState.tasks = tasks || [];
@@ -447,6 +448,35 @@ async function initApp() {
         renderMaterials();
         renderNotifications();
         renderGradesSection();
+        // Restaura histórico do tutor (conversas anteriores salvas no banco)
+        if (Array.isArray(chatRows) && chatRows.length) {
+            const box = document.getElementById('chat-box');
+            if (box) box.innerHTML = '';
+            chatHistory = [];
+            for (const row of chatRows) {
+                const role = row.sender === 'assistant' || row.sender === 'ai' ? 'assistant' : 'user';
+                const content = row.message;
+                chatHistory.push({ role, content });
+                // Renderiza sem esperar markdown assíncrono para não bloquear
+                const isUser = role === 'user';
+                if (isUser) {
+                    appendChatMessage(content, 'user');
+                } else {
+                    // Renderiza markdown de forma assíncrona mas não bloqueia o loop
+                    const text = content;
+                    appendChatMessage(text, 'ai');
+                    // Tenta renderizar markdown se for HTML (fallback já é markdown puro)
+                    (async () => {
+                        try {
+                            await ensureHighlighter();
+                            const html = await renderMarkdown(text);
+                            const last = box.lastElementChild;
+                            if (last) last.querySelector('.flex-1').innerHTML = `<div class="leading-relaxed chat-md">${html}</div>`;
+                        } catch {}
+                    })();
+                }
+            }
+        }
 
         // Chaves salvas no navegador por versões antigas migram para o banco (cifradas).
         migrateLocalGroqKey().then(migrated => { if (migrated) refreshAiStatus(); });
