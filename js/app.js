@@ -476,6 +476,7 @@ async function initApp() {
                     })();
                 }
             }
+            renderChatHistoryPanel();
         }
 
         // Chaves salvas no navegador por versões antigas migram para o banco (cifradas).
@@ -1681,6 +1682,7 @@ async function sendChatMessage() {
         chatHistory.push({ role: 'assistant', content: response });
         apiSaveChatMessage('user', sentMsg).catch(() => {});
         apiSaveChatMessage('assistant', response).catch(() => {});
+        renderChatHistoryPanel();
         const elapsed = ((Date.now() - thinkingStart) / 1000).toFixed(1);
         if (thinkingEl.parentNode) thinkingEl.remove();
         if (streamEl) {
@@ -1747,6 +1749,25 @@ function setChatStopBtnVisible(visible) {
     if (window.lucide) lucide.createIcons();
 }
 
+function renderChatHistoryPanel() {
+    const list = document.getElementById('chat-history-list');
+    const count = document.getElementById('chat-history-count');
+    if (!list) return;
+    const userMsgs = chatHistory.filter(m => m.role === 'user');
+    if (count) count.textContent = userMsgs.length;
+    if (!userMsgs.length) { list.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Nenhuma conversa salva.</p>`; return; }
+    list.innerHTML = '';
+    // Mostra do mais recente para o mais antigo
+    [...userMsgs].reverse().slice(0, 30).forEach((m, idx) => {
+        const title = m.content.slice(0, 40).replace(/\n/g, ' ') + (m.content.length > 40 ? '...' : '');
+        const item = document.createElement('button');
+        item.className = 'w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition border border-transparent hover:border-slate-200 dark:hover:border-slate-700';
+        item.innerHTML = `<p class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">${escapeHtml(title)}</p><p class="text-[10px] text-slate-400">${idx === 0 ? 'Mais recente' : ''}</p>`;
+        item.onclick = () => { filterChatHistory(m.content.slice(0, 20)); document.getElementById('chat-search-bar')?.classList.remove('hidden'); document.getElementById('chat-search-input').value = m.content.slice(0, 20); document.getElementById('chat-search-input')?.focus(); };
+        list.appendChild(item);
+    });
+    if (window.lucide) lucide.createIcons();
+}
 function toggleChatSearch() {
     const bar = document.getElementById('chat-search-bar');
     const input = document.getElementById('chat-search-input');
@@ -1815,10 +1836,12 @@ function appendChatMessage(text, sender, isHtml = false) {
 }
 
 function clearChat() {
+    if (!confirm('Iniciar nova conversa? O histórico atual será limpo.')) return;
     chatHistory = [];
     apiClearChatHistory().catch(() => {});
     const box = document.getElementById('chat-box');
     box.innerHTML = ``;
+    renderChatHistoryPanel();
 }
 
 // --- NOTIFICAÇÕES ---
