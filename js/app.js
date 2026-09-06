@@ -1587,7 +1587,7 @@ async function sendChatMessage() {
     input.style.height = 'auto';
     appendChatMessage(sentMsg, 'user');
 
-    // Pensando... logo abaixo da mensagem do usuário (com cronômetro)
+    // Pensando... logo abaixo da mensagem do usuário
     const chatBox = document.getElementById('chat-box');
     const thinkingEl = document.createElement('div');
     thinkingEl.id = 'thinking-bubble';
@@ -1600,17 +1600,12 @@ async function sendChatMessage() {
                 <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
                 <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
             </span>
-            <span class="thinking-timer text-xs text-slate-400">0.0s</span>
         </div>
     `;
     chatBox.appendChild(thinkingEl);
     chatBox.scrollTop = chatBox.scrollHeight;
     setChatStopBtnVisible(true);
     const thinkingStart = Date.now();
-    const thinkingTimer = setInterval(() => {
-        const el = thinkingEl.querySelector('.thinking-timer');
-        if (el) el.textContent = `${((Date.now() - thinkingStart) / 1000).toFixed(1)}s`;
-    }, 100);
 
     // Cria bolha vazia para stream e atualiza incrementalmente
     let streamEl = null;
@@ -1618,8 +1613,7 @@ async function sendChatMessage() {
     let streamTimer = null;
     function ensureStreamBubble() {
         if (streamEl) return streamEl;
-        clearInterval(thinkingTimer);
-        thinkingEl.remove();
+        if (thinkingEl.parentNode) thinkingEl.remove();
         const wrapper = document.createElement('div');
         wrapper.className = 'flex gap-3 max-w-2xl';
         wrapper.innerHTML = `
@@ -1657,7 +1651,6 @@ async function sendChatMessage() {
         chatHistory.push({ role: 'assistant', content: response });
         apiSaveChatMessage('user', sentMsg).catch(() => {});
         apiSaveChatMessage('assistant', response).catch(() => {});
-        clearInterval(thinkingTimer);
         const elapsed = ((Date.now() - thinkingStart) / 1000).toFixed(1);
         if (thinkingEl.parentNode) thinkingEl.remove();
         if (streamEl) {
@@ -1684,7 +1677,6 @@ async function sendChatMessage() {
             }
         }
     } catch (err) {
-        clearInterval(thinkingTimer);
         if (thinkingEl.parentNode) thinkingEl.remove();
         if (err.name === 'AbortError') {
             if (streamEl && streamRaw) {
