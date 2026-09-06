@@ -1726,14 +1726,24 @@ function stopChatGeneration() {
 function appendChatMessage(text, sender, isHtml = false) {
     const chatBox = document.getElementById('chat-box');
     const wrapper = document.createElement('div');
-    wrapper.className = sender === 'user' ? 'flex max-w-2xl ml-auto' : 'flex max-w-2xl';
-    wrapper.innerHTML = `
-        <div class="flex-1 min-w-0 py-1 text-sm ${sender === 'user' ? 'text-slate-800 dark:text-slate-200 text-right' : 'text-slate-800 dark:text-slate-200'}">
-            <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
-        </div>
-    `;
+    if (sender === 'user') {
+        wrapper.className = 'flex justify-end max-w-2xl ml-auto';
+        wrapper.innerHTML = `
+            <div class="inline-block w-fit max-w-[80%] bg-emerald-600 text-white rounded-2xl rounded-tr-sm px-4 py-2 text-sm shadow-sm">
+                <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
+            </div>
+        `;
+    } else {
+        wrapper.className = 'flex max-w-2xl';
+        wrapper.innerHTML = `
+            <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
+                <div class="leading-relaxed ${isHtml ? 'chat-md' : 'whitespace-pre-wrap'}">${isHtml ? text : escapeHtml(text)}</div>
+            </div>
+        `;
+    }
     chatBox.appendChild(wrapper);
     chatBox.scrollTop = chatBox.scrollHeight;
+    return wrapper;
 }
 
 function clearChat() {
