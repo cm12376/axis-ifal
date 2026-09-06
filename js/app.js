@@ -1587,8 +1587,23 @@ async function sendChatMessage() {
     input.style.height = 'auto';
     appendChatMessage(sentMsg, 'user');
 
-    const typing = document.getElementById('ai-typing');
-    typing.classList.remove('hidden');
+    // Pensando... logo abaixo da mensagem do usuário
+    const chatBox = document.getElementById('chat-box');
+    const thinkingEl = document.createElement('div');
+    thinkingEl.id = 'thinking-bubble';
+    thinkingEl.className = 'flex gap-3 max-w-2xl';
+    thinkingEl.innerHTML = `
+        <div class="flex-1 min-w-0 py-2 flex items-center gap-3 text-sm text-slate-500">
+            <span class="font-medium">Pensando</span>
+            <span class="flex gap-1">
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </span>
+        </div>
+    `;
+    chatBox.appendChild(thinkingEl);
+    chatBox.scrollTop = chatBox.scrollHeight;
     setChatStopBtnVisible(true);
 
     // Cria bolha vazia para stream e atualiza incrementalmente
@@ -1597,7 +1612,7 @@ async function sendChatMessage() {
     let streamTimer = null;
     function ensureStreamBubble() {
         if (streamEl) return streamEl;
-        const chatBox = document.getElementById('chat-box');
+        thinkingEl.remove();
         const wrapper = document.createElement('div');
         wrapper.className = 'flex gap-3 max-w-2xl';
         wrapper.innerHTML = `
@@ -1615,7 +1630,7 @@ async function sendChatMessage() {
             streamTimer = null;
             if (!streamEl) return;
             streamEl.textContent = streamRaw + ' ▌';
-            streamEl.parentElement.parentElement.parentElement.scrollTop = streamEl.parentElement.parentElement.parentElement.scrollHeight;
+            streamEl.parentElement.parentElement.scrollTop = streamEl.parentElement.parentElement.scrollHeight;
         }, 40);
     }
 
@@ -1627,7 +1642,6 @@ async function sendChatMessage() {
         const groqModel = aiStatus.model || 'auto';
         const onDelta = (delta, full) => {
             streamRaw = full;
-            typing.classList.add('hidden');
             ensureStreamBubble();
             scheduleRender();
         };
@@ -1636,6 +1650,7 @@ async function sendChatMessage() {
         chatHistory.push({ role: 'assistant', content: response });
         apiSaveChatMessage('user', sentMsg).catch(() => {});
         apiSaveChatMessage('assistant', response).catch(() => {});
+        thinkingEl.remove();
         if (streamEl) {
             if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
             await ensureHighlighter();
@@ -1649,6 +1664,7 @@ async function sendChatMessage() {
             appendChatMessage(html, 'ai', true);
         }
     } catch (err) {
+        thinkingEl.remove();
         if (err.name === 'AbortError') {
             if (streamEl && streamRaw) {
                 const wrapper = streamEl.closest('.flex');
@@ -1661,7 +1677,6 @@ async function sendChatMessage() {
             appendChatMessage("Desculpe, ocorreu um erro de conexão com o Tutor Virtual.", 'ai');
         }
     } finally {
-        typing.classList.add('hidden');
         setChatStopBtnVisible(false);
         chatAbortController = null;
         removeChatAttachment();
