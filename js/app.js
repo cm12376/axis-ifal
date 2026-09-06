@@ -1712,14 +1712,7 @@ function clearChat() {
     chatHistory = [];
     apiClearChatHistory().catch(() => {});
     const box = document.getElementById('chat-box');
-    box.innerHTML = `
-        <div class="flex gap-3 max-w-2xl">
-            <div class="flex-1 min-w-0 py-1 text-sm text-slate-800 dark:text-slate-200">
-                <p class="font-extrabold text-slate-800 dark:text-white text-xs mb-1">Tutor Virtual do IFAL</p>
-                <p class="text-sm">Histórico do tutor redefinido. Como posso ajudar com os seus estudos hoje?</p>
-            </div>
-        </div>
-    `;
+    box.innerHTML = ``;
 }
 
 // --- NOTIFICAÇÕES ---
