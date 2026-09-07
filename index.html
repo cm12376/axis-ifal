@@ -726,6 +726,10 @@
                     <i data-lucide="flame" class="w-4 h-4"></i>
                     Métricas de Estudo
                 </button>
+                <button onclick="changeTab('simulados')" id="btn-simulados" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="file-question" class="w-4 h-4"></i>
+                    Gerador de Simulados
+                </button>
                 <button onclick="changeTab('assistant')" id="btn-assistant" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
                     <span class="flex h-2 w-2 relative -mr-1">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -1337,6 +1341,54 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <!-- TAB: GERADOR DE SIMULADOS -->
+                <section id="tab-simulados" class="space-y-6 hidden">
+                    <div>
+                        <h2 class="text-xl font-bold">Gerador de Simulados Personalizados</h2>
+                        <p class="text-xs text-slate-500">Digite os assuntos da prova e a IA cria um questionário com gabarito comentado.</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Assuntos da prova (separe por vírgula ou linha)</label>
+                            <textarea id="sim-assuntos" rows="3" placeholder="Ex: Fotossíntese, Leis de Newton, Função afim, Segunda Guerra Mundial..." class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500"></textarea>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                                <select id="sim-tipo" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                    <option value="multipla">Múltipla escolha</option>
+                                    <option value="discursiva">Discursiva</option>
+                                    <option value="mista">Mista</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Quantidade</label>
+                                <select id="sim-qtd" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                    <option value="5">5 questões</option>
+                                    <option value="10" selected>10 questões</option>
+                                    <option value="15">15 questões</option>
+                                    <option value="20">20 questões</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="gerarSimulado()" id="btn-gerar-simulado" class="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i> Gerar Simulado
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="sim-loading" class="hidden flex items-center gap-2 text-xs text-slate-500">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Gerando simulado com gabarito comentado...
+                    </div>
+                    <div id="sim-result" class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold">Simulado Gerado</h3>
+                            <button onclick="copiarSimulado()" class="text-xs px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900">Copiar</button>
+                        </div>
+                        <div id="sim-content" class="chat-md text-sm leading-relaxed"></div>
                     </div>
                 </section>
 

@@ -2082,6 +2082,50 @@ window.previewNotifSound = previewNotifSound;
 window.handleNotifSoundSelect = handleNotifSoundSelect;
 window.handleNotifFileChange = handleNotifFileChange;
 window.playNotifSound = playNotifSound;
+window.gerarSimulado = gerarSimulado;
+window.copiarSimulado = copiarSimulado;
+
+async function gerarSimulado() {
+    const assuntos = document.getElementById('sim-assuntos')?.value.trim();
+    const tipo = document.getElementById('sim-tipo')?.value || 'multipla';
+    const qtd = document.getElementById('sim-qtd')?.value || '10';
+    if (!assuntos) { showToast('Digite os assuntos da prova.'); return; }
+    const tipoLabel = tipo === 'multipla' ? 'múltipla escolha (4 alternativas A-D)' : tipo === 'discursiva' ? 'discursiva' : 'mista (metade múltipla escolha e metade discursiva)';
+    const prompt = `Crie um SIMULADO PERSONALIZADO com ${qtd} questões do tipo ${tipoLabel} sobre os seguintes assuntos: ${assuntos}. Para cada questão, apresente o enunciado, as alternativas (se for múltipla escolha) e ao final forneça o GABARITO COMENTADO passo a passo, explicando o porquê de cada resposta e o conceito envolvido. Use Markdown com títulos, listas e, quando houver fórmula, LaTeX entre $...$ ou $$...$$.`;
+    const btn = document.getElementById('btn-gerar-simulado');
+    const loading = document.getElementById('sim-loading');
+    const result = document.getElementById('sim-result');
+    const content = document.getElementById('sim-content');
+    btn.disabled = true; btn.innerHTML = 'Gerando...';
+    loading.classList.remove('hidden');
+    result.classList.add('hidden');
+    try {
+        const history = [];
+        const groqModel = aiStatus.model || 'auto';
+        let full = '';
+        const onDelta = (delta, all) => { full = all; content.textContent = full; };
+        // Usa o tutor com stream se disponível, senão fallback
+        const resp = await askGeminiTutor(prompt, null, null, history, groqModel, onDelta);
+        const finalText = resp || full;
+        await ensureHighlighter();
+        const html = await renderMarkdown(finalText);
+        content.innerHTML = html;
+        result.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    } catch (e) {
+        showToast('Erro ao gerar simulado: ' + (e.message || 'tente novamente'));
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Gerar Simulado';
+        loading.classList.add('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+}
+function copiarSimulado() {
+    const el = document.getElementById('sim-content');
+    if (!el) return;
+    const text = el.innerText || el.textContent;
+    navigator.clipboard.writeText(text).then(()=>showToast('Simulado copiado!')).catch(()=>showToast('Não foi possível copiar.'));
+}
 
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('chat-menu');
