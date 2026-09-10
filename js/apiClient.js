@@ -323,23 +323,48 @@ export async function apiDeleteGrade(id) {
     return true;
 }
 
-// --- CHAT DO TUTOR IA ---
-export async function apiFetchChatHistory() {
-    try { return await request('/chat'); }
+// --- CHATS DO TUTOR IA (estilo ChatGPT: várias conversas) ---
+export async function apiFetchConversations() {
+    try { return await request('/chat?action=conversations'); }
     catch (e) { if (e.status === 401) throw e; return []; }
 }
 
-export async function apiSaveChatMessage(sender, message) {
+export async function apiCreateConversation(title = 'Nova conversa') {
+    return request('/chat?action=conversations', { method: 'POST', body: JSON.stringify({ title }) });
+}
+
+export async function apiFetchChatHistory(conversationId = null) {
     try {
-        return await request('/chat', { method: 'POST', body: JSON.stringify({ sender, message }) });
+        if (conversationId) return await request(`/chat?conversation_id=${encodeURIComponent(conversationId)}`);
+        return await request('/chat');
+    }
+    catch (e) { if (e.status === 401) throw e; return []; }
+}
+
+export async function apiSaveChatMessage(sender, message, conversationId = null) {
+    try {
+        return await request('/chat', { method: 'POST', body: JSON.stringify({ sender, message, conversation_id: conversationId }) });
     } catch (e) {
         if (e.status === 401) throw e;
         return null;
     }
 }
 
-export async function apiClearChatHistory() {
-    try { await request('/chat', { method: 'DELETE' }); }
+export async function apiRenameConversation(conversationId, title) {
+    return request('/chat?action=rename', { method: 'POST', body: JSON.stringify({ conversation_id: conversationId, title }) });
+}
+
+export async function apiDeleteConversation(conversationId) {
+    try { await request(`/chat?conversation_id=${encodeURIComponent(conversationId)}`, { method: 'DELETE' }); }
+    catch (e) { if (e.status === 401) throw e; }
+    return true;
+}
+
+export async function apiClearChatHistory(conversationId = null) {
+    try {
+        if (conversationId) await request(`/chat?conversation_id=${encodeURIComponent(conversationId)}`, { method: 'DELETE' });
+        else await request('/chat', { method: 'DELETE' });
+    }
     catch (e) { if (e.status === 401) throw e; }
     return true;
 }

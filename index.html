@@ -1256,11 +1256,11 @@
                             <p class="text-xs text-slate-500">Tire dúvidas sobre regras do IFAL, SIGAA, Pomodoro e roteiros de estudo.</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="clearChat()" title="Nova Conversa" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
-                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nova Conversa
+                            <button onclick="clearChat()" title="Novo chat (os anteriores continuam salvos)" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Novo chat
                             </button>
-                            <button onclick="toggleChatSearch()" title="Procurar Conversa" class="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
-                                <i data-lucide="search" class="w-3.5 h-3.5"></i> Procurar Conversa
+                            <button onclick="toggleChatSearch()" title="Buscar nos seus chats" class="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i> Buscar chats
                             </button>
                             <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
                             <button onclick="openConfigModal()" class="hidden sm:flex text-xs text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 items-center gap-1 transition">
@@ -1270,17 +1270,17 @@
                     </div>
                     <div id="chat-search-bar" class="hidden">
                         <div class="flex gap-2">
-                            <input type="text" id="chat-search-input" oninput="filterChatHistory(this.value)" placeholder="Buscar em conversas salvas (ex: fotossíntese, 2ª chamada)..." class="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                            <input type="text" id="chat-search-input" oninput="filterChatHistory(this.value)" placeholder="Buscar nos chats (ex: fotossíntese, 2ª chamada)..." class="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
                             <button onclick="toggleChatSearch()" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800">Fechar</button>
                         </div>
                         <p id="chat-search-info" class="text-[10px] text-slate-400 mt-1 hidden"></p>
                     </div>
 
                     <div class="flex-1 flex gap-4 min-h-[350px] overflow-hidden">
-                        <!-- Aba de conversas salvas -->
+                        <!-- Sidebar de chats (estilo ChatGPT) -->
                         <div id="chat-history-panel" class="hidden lg:flex w-64 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex-col overflow-hidden">
                             <div class="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                                <span class="text-xs font-bold">Conversas Salvas</span>
+                                <span class="text-xs font-bold">Seus chats</span>
                                 <span id="chat-history-count" class="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">0</span>
                             </div>
                             <div id="chat-history-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
@@ -1380,15 +1380,15 @@
                             </div>
                         </div>
                     </div>
-                    <div id="sim-loading" class="hidden flex items-center gap-2 text-xs text-slate-500">
+                    <div id="sim-gen-loading" class="hidden flex items-center gap-2 text-xs text-slate-500">
                         <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Gerando simulado com gabarito comentado...
                     </div>
-                    <div id="sim-result" class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hidden">
+                    <div id="sim-gen-result" class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hidden">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-bold">Simulado Gerado</h3>
+                            <h3 class="text-sm font-bold">Simulado Gerado + Gabarito Comentado</h3>
                             <button onclick="copiarSimulado()" class="text-xs px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900">Copiar</button>
                         </div>
-                        <div id="sim-content" class="chat-md text-sm leading-relaxed"></div>
+                        <div id="sim-gen-content" class="chat-md text-sm leading-relaxed"></div>
                     </div>
                 </section>
 

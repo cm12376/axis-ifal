@@ -31,8 +31,12 @@ import {
     apiUpdateProfile,
     apiFetchPomodoroSessions,
     apiLogPomodoroSession,
+    apiFetchConversations,
+    apiCreateConversation,
     apiFetchChatHistory,
     apiSaveChatMessage,
+    apiRenameConversation,
+    apiDeleteConversation,
     apiClearChatHistory,
     apiGetVapidKey,
     apiSubscribePush,
@@ -411,7 +415,7 @@ async function initApp() {
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
-        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions, chatRows] = await Promise.all([
+        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions, conversations] = await Promise.all([
             apiFetchTasks(),
             apiFetchEvents(),
             apiFetchMaterials(),
@@ -419,7 +423,7 @@ async function initApp() {
             apiFetchGrades(),
             apiFetchProfile(),
             apiFetchPomodoroSessions(),
-            apiFetchChatHistory().catch(()=>[])
+            apiFetchConversations().catch(()=>[])
         ]);
 
         appState.tasks = tasks || [];
@@ -448,36 +452,8 @@ async function initApp() {
         renderMaterials();
         renderNotifications();
         renderGradesSection();
-        // Restaura histórico do tutor (conversas anteriores salvas no banco)
-        if (Array.isArray(chatRows) && chatRows.length) {
-            const box = document.getElementById('chat-box');
-            if (box) box.innerHTML = '';
-            chatHistory = [];
-            for (const row of chatRows) {
-                const role = row.sender === 'assistant' || row.sender === 'ai' ? 'assistant' : 'user';
-                const content = row.message;
-                chatHistory.push({ role, content });
-                // Renderiza sem esperar markdown assíncrono para não bloquear
-                const isUser = role === 'user';
-                if (isUser) {
-                    appendChatMessage(content, 'user');
-                } else {
-                    // Renderiza markdown de forma assíncrona mas não bloqueia o loop
-                    const text = content;
-                    appendChatMessage(text, 'ai');
-                    // Tenta renderizar markdown se for HTML (fallback já é markdown puro)
-                    (async () => {
-                        try {
-                            await ensureHighlighter();
-                            const html = await renderMarkdown(text);
-                            const last = box.lastElementChild;
-                            if (last) last.querySelector('.flex-1').innerHTML = `<div class="leading-relaxed chat-md">${html}</div>`;
-                        } catch {}
-                    })();
-                }
-            }
-            renderChatHistoryPanel();
-        }
+        // Carrega chats estilo ChatGPT (sidebar de conversas + mensagens da ativa)
+        await loadConversations(conversations);
 
         // Chaves salvas no navegador por versões antigas migram para o banco (cifradas).
         migrateLocalGroqKey().then(migrated => { if (migrated) refreshAiStatus(); });
@@ -1388,11 +1364,13 @@ function simPerformance() {
     }
 }
 
-// --- TUTOR VIRTUAL IA GROQ ---
+// --- TUTOR VIRTUAL IA GROQ (chats estilo ChatGPT) ---
 let chatAttachment = null;
 let chatAbortController = null;
-let chatHistory = [];
+let chatHistory = []; // mensagens da conversa ATIVA: [{role, content}]
 let chatMode = null;
+let chatConversations = []; // [{id, title, updated_at, message_count}]
+let currentConversationId = null;
 
 function handleChatKey(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -1680,9 +1658,17 @@ async function sendChatMessage() {
         const response = await askGeminiTutor(modePrompt, chatAttachment, chatAbortController.signal, historyForAi, groqModel, onDelta);
         chatHistory.push({ role: 'user', content: sentMsg });
         chatHistory.push({ role: 'assistant', content: response });
-        apiSaveChatMessage('user', sentMsg).catch(() => {});
-        apiSaveChatMessage('assistant', response).catch(() => {});
-        renderChatHistoryPanel();
+        // Persiste na conversa ativa (cria uma se for a primeira mensagem) — estilo ChatGPT
+        try {
+            const savedUser = await apiSaveChatMessage('user', sentMsg, currentConversationId);
+            if (savedUser?.conversation_id && !currentConversationId) {
+                currentConversationId = savedUser.conversation_id;
+            }
+            const savedAi = await apiSaveChatMessage('assistant', response, currentConversationId);
+            if (savedAi?.conversation_id) currentConversationId = savedAi.conversation_id;
+            await refreshConversationList();
+        } catch {}
+        renderConversationList();
         const elapsed = ((Date.now() - thinkingStart) / 1000).toFixed(1);
         if (thinkingEl.parentNode) thinkingEl.remove();
         if (streamEl) {
@@ -1749,61 +1735,121 @@ function setChatStopBtnVisible(visible) {
     if (window.lucide) lucide.createIcons();
 }
 
-function renderChatHistoryPanel() {
+// --- CHATS ESTILO CHATGPT: lista de conversas + troca + busca ---
+async function loadConversations(prefetched = null) {
+    try {
+        chatConversations = Array.isArray(prefetched) ? prefetched : await apiFetchConversations();
+    } catch { chatConversations = []; }
+    renderConversationList();
+    if (chatConversations.length) {
+        await switchConversation(chatConversations[0].id);
+    } else {
+        currentConversationId = null;
+        chatHistory = [];
+        const box = document.getElementById('chat-box');
+        if (box) box.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Comece uma nova conversa — ela ficará salva aqui como no ChatGPT.</p>`;
+    }
+}
+
+async function refreshConversationList() {
+    try { chatConversations = await apiFetchConversations(); } catch {}
+    renderConversationList();
+}
+
+function renderConversationList(filter = '') {
     const list = document.getElementById('chat-history-list');
     const count = document.getElementById('chat-history-count');
+    // compat: função antiga chamava renderChatHistoryPanel
     if (!list) return;
-    const userMsgs = chatHistory.filter(m => m.role === 'user');
-    if (count) count.textContent = userMsgs.length;
-    if (!userMsgs.length) { list.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Nenhuma conversa salva.</p>`; return; }
+    const q = String(filter || '').trim().toLowerCase();
+    const items = q ? chatConversations.filter(c => String(c.title || '').toLowerCase().includes(q)) : chatConversations;
+    if (count) count.textContent = chatConversations.length;
+    if (!items.length) {
+        list.innerHTML = q
+            ? `<p class="text-xs text-slate-400 text-center py-6">Nenhum chat para "${escapeHtml(filter)}".</p>`
+            : `<p class="text-xs text-slate-400 text-center py-6">Nenhum chat ainda. Clique em Nova conversa.</p>`;
+        return;
+    }
     list.innerHTML = '';
-    // Mostra do mais recente para o mais antigo
-    [...userMsgs].reverse().slice(0, 30).forEach((m, idx) => {
-        const title = m.content.slice(0, 40).replace(/\n/g, ' ') + (m.content.length > 40 ? '...' : '');
-        const item = document.createElement('button');
-        item.className = 'w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition border border-transparent hover:border-slate-200 dark:hover:border-slate-700';
-        item.innerHTML = `<p class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">${escapeHtml(title)}</p><p class="text-[10px] text-slate-400">${idx === 0 ? 'Mais recente' : ''}</p>`;
-        item.onclick = () => { filterChatHistory(m.content.slice(0, 20)); document.getElementById('chat-search-bar')?.classList.remove('hidden'); document.getElementById('chat-search-input').value = m.content.slice(0, 20); document.getElementById('chat-search-input')?.focus(); };
+    items.forEach((c) => {
+        const active = c.id === currentConversationId;
+        const item = document.createElement('div');
+        item.className = 'w-full text-left px-3 py-2 rounded-lg transition border cursor-pointer flex items-center gap-2 ' + (active
+            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40'
+            : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700');
+        item.innerHTML = `
+            <div class="flex-1 min-w-0" data-act="open">
+                <p class="text-xs font-semibold truncate ${active ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}">${escapeHtml(c.title || 'Nova conversa')}</p>
+                <p class="text-[10px] text-slate-400">${c.message_count ?? ''}${c.message_count === 1 ? ' mensagem' : c.message_count ? ' mensagens' : ''}</p>
+            </div>
+            <button title="Excluir chat" data-act="del" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+            </button>`;
+        item.querySelector('[data-act="open"]').onclick = () => switchConversation(c.id);
+        item.querySelector('[data-act="del"]').onclick = (e) => { e.stopPropagation(); deleteConversation(c.id); };
         list.appendChild(item);
     });
     if (window.lucide) lucide.createIcons();
 }
+
+// compat com HTML antigo
+function renderChatHistoryPanel(filter = '') { renderConversationList(filter); }
+
+async function switchConversation(id) {
+    if (!id) return;
+    currentConversationId = id;
+    renderConversationList(document.getElementById('chat-search-input')?.value || '');
+    const box = document.getElementById('chat-box');
+    if (box) box.innerHTML = `<p class="text-xs text-slate-400 text-center py-6 animate-pulse">Carregando conversa…</p>`;
+    try {
+        const rows = await apiFetchChatHistory(id);
+        chatHistory = (rows || []).map(r => ({ role: r.sender === 'assistant' || r.sender === 'ai' ? 'assistant' : 'user', content: r.message }));
+        await renderActiveConversation();
+    } catch {
+        chatHistory = [];
+        if (box) box.innerHTML = `<p class="text-xs text-rose-400 text-center py-6">Não foi possível carregar esta conversa.</p>`;
+    }
+}
+
+async function renderActiveConversation() {
+    const box = document.getElementById('chat-box');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!chatHistory.length) {
+        box.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Conversa vazia — envie a primeira mensagem.</p>`;
+        return;
+    }
+    await ensureHighlighter();
+    for (const m of chatHistory) {
+        if (m.role === 'user') appendChatMessage(m.content, 'user');
+        else {
+            try { appendChatMessage(await renderMarkdown(m.content), 'ai', true); }
+            catch { appendChatMessage(m.content, 'ai'); }
+        }
+    }
+}
+
 function toggleChatSearch() {
     const bar = document.getElementById('chat-search-bar');
     const input = document.getElementById('chat-search-input');
-    const info = document.getElementById('chat-search-info');
     bar.classList.toggle('hidden');
     if (!bar.classList.contains('hidden')) { input.focus(); }
-    else { input.value = ''; info.classList.add('hidden'); filterChatHistory(''); }
+    else { input.value = ''; renderConversationList(''); }
 }
-function filterChatHistory(q) {
-    const box = document.getElementById('chat-box');
-    const info = document.getElementById('chat-search-info');
-    const query = q.trim().toLowerCase();
-    if (!query) {
-        // Restaura histórico completo
-        box.innerHTML = '';
-        chatHistory.forEach(m => {
-            const isUser = m.role === 'user';
-            appendChatMessage(m.content, isUser ? 'user' : 'ai');
-        });
-        info.classList.add('hidden');
-        return;
-    }
-    const filtered = chatHistory.filter(m => m.content.toLowerCase().includes(query));
-    box.innerHTML = '';
-    if (!filtered.length) {
-        box.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Nenhuma conversa encontrada para "${escapeHtml(q)}".</p>`;
-        info.textContent = '0 resultados';
-        info.classList.remove('hidden');
-        return;
-    }
-    filtered.forEach(m => {
-        const isUser = m.role === 'user';
-        appendChatMessage(m.content, isUser ? 'user' : 'ai');
-    });
-    info.textContent = `${filtered.length} resultado(s) para "${q}"`;
-    info.classList.remove('hidden');
+function filterChatHistory(q) { renderConversationList(q); }
+
+async function deleteConversation(id) {
+    if (!id) return;
+    if (!confirm('Excluir este chat e todas as suas mensagens?')) return;
+    try { await apiDeleteConversation(id); } catch (e) { showToast('Não foi possível excluir.'); return; }
+    chatConversations = chatConversations.filter(c => c.id !== id);
+    if (currentConversationId === id) {
+        currentConversationId = null;
+        chatHistory = [];
+        if (chatConversations.length) await switchConversation(chatConversations[0].id);
+        else { renderConversationList(); document.getElementById('chat-box').innerHTML = ''; }
+    } else renderConversationList();
+    showToast('Chat excluído.');
 }
 
 function stopChatGeneration() {
@@ -1835,13 +1881,14 @@ function appendChatMessage(text, sender, isHtml = false) {
     return wrapper;
 }
 
-function clearChat() {
-    if (!confirm('Iniciar nova conversa? O histórico atual será limpo.')) return;
+async function clearChat() {
+    // "Nova conversa" estilo ChatGPT: não apaga nada, só abre um chat vazio
     chatHistory = [];
-    apiClearChatHistory().catch(() => {});
+    currentConversationId = null;
     const box = document.getElementById('chat-box');
-    box.innerHTML = ``;
-    renderChatHistoryPanel();
+    if (box) box.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Nova conversa iniciada — digite abaixo. Os chats anteriores continuam salvos ao lado.</p>`;
+    renderConversationList(document.getElementById('chat-search-input')?.value || '');
+    document.getElementById('chat-input')?.focus();
 }
 
 // --- NOTIFICAÇÕES ---
@@ -2060,6 +2107,8 @@ window.setMaterialFilter = setMaterialFilter;
 window.simPerformance = simPerformance;
 window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
+window.switchConversation = switchConversation;
+window.deleteConversation = deleteConversation;
 window.toggleChatSearch = toggleChatSearch;
 window.filterChatHistory = filterChatHistory;
 window.handleChatFile = handleChatFile;
@@ -2085,6 +2134,11 @@ window.playNotifSound = playNotifSound;
 window.gerarSimulado = gerarSimulado;
 window.copiarSimulado = copiarSimulado;
 
+function hasGabarito(text) {
+    const t = String(text || '').toLowerCase();
+    return t.includes('gabarito') && (t.includes('questão 1') || t.includes('questao 1') || t.includes('**questão 1') || t.includes('### questão'));
+}
+
 async function gerarSimulado() {
     const assuntos = document.getElementById('sim-assuntos')?.value.trim();
     const tipo = document.getElementById('sim-tipo')?.value || 'multipla';
@@ -2092,57 +2146,67 @@ async function gerarSimulado() {
     if (!assuntos) { showToast('Digite os assuntos da prova.'); return; }
     if (assuntos.length < 3) { showToast('Descreva melhor os assuntos (mín. 3 caracteres).'); return; }
 
-    // Aviso precoce se IA não configurada (evita chamada inútil)
     if (aiStatus.loaded && !aiStatus.userKey && !aiStatus.serverKey) {
         showToast('Configure a IA em "Configurar IA" antes de gerar simulados.');
     }
 
     const tipoLabel = tipo === 'multipla' ? 'múltipla escolha (4 alternativas A-D)' : tipo === 'discursiva' ? 'discursiva' : 'mista (metade múltipla escolha e metade discursiva)';
-    const prompt = `Gere um SIMULADO com ${qtd} questões do tipo ${tipoLabel} sobre: ${assuntos}. Siga rigorosamente a estrutura definida no system prompt de simulados (título, questões numeradas com enunciado e alternativas quando aplicável, depois gabarito comentado detalhado). Use Markdown e LaTeX com $...$ ou $$...$$ para fórmulas.`;
+    // Prompt auto-contido: não depende só do system prompt — exige as 2 partes explicitamente
+    const prompt = `Gere um SIMULADO COMPLETO com EXATAMENTE ${qtd} questões do tipo ${tipoLabel} sobre: ${assuntos}.\n\nOBRIGATÓRIO entregar as DUAS partes na MESMA resposta:\nPARTE 1 — QUESTÕES numeradas de 1 a ${qtd} (enunciado + alternativas A-D quando for múltipla escolha).\nPARTE 2 — GABARITO COMENTADO com TODAS as ${qtd} questões (resposta + explicação passo a passo do raciocínio + conceito-chave). É PROIBIDO omitir o gabarito ou qualquer questão dele.\n\nUse Markdown (# Simulado, ## Parte 1 — Questões, ### Questão N, ---, ## Parte 2 — Gabarito Comentado) e LaTeX $...$ ou $$...$$ para fórmulas.`;
 
     const btn = document.getElementById('btn-gerar-simulado');
-    const loading = document.getElementById('sim-loading');
-    const result = document.getElementById('sim-result');
-    const content = document.getElementById('sim-content');
+    const loading = document.getElementById('sim-gen-loading');
+    const result = document.getElementById('sim-gen-result');
+    const content = document.getElementById('sim-gen-content');
+    if (!btn || !loading || !result || !content) { showToast('Erro interno: bloco do simulado não encontrado.'); return; }
 
-    // UI: trava botão, mostra loading e já deixa o card de resultado visível para streaming
     const originalBtnHtml = btn.innerHTML;
     btn.disabled = true;
     btn.classList.add('opacity-70', 'cursor-not-allowed');
     btn.innerHTML = '<span class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Gerando...';
     loading.classList.remove('hidden');
     result.classList.remove('hidden');
-    content.innerHTML = '<p class="text-xs text-slate-400 animate-pulse">Gerando simulado — isso pode levar até 20s...</p>';
-    // garante que o ícone de loading não quebre o layout
+    content.innerHTML = '<p class="text-xs text-slate-400 animate-pulse">Gerando simulado com gabarito — isso pode levar até 40s...</p>';
     if (window.lucide) lucide.createIcons();
 
     try {
         const groqModel = aiStatus.model || 'auto';
         let full = '';
-        let gotDelta = false;
         const onDelta = (delta, all) => {
-            gotDelta = true;
             full = all;
-            // streaming visível: mostra texto cru com cursor
             content.textContent = full + ' ▌';
-            // mantém o loading visível mas com texto de progresso
-            loading.innerHTML = '<span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Escrevendo questões... ' + full.length + ' caracteres';
+            loading.innerHTML = '<span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Escrevendo questões e gabarito... ' + full.length + ' caracteres';
         };
 
-        const resp = await askGeminiTutor(prompt, null, null, [], groqModel, onDelta, { mode: 'simulado' });
-        const finalText = (resp && resp.trim()) ? resp : full;
+        let finalText = await askGeminiTutor(prompt, null, null, [], groqModel, onDelta, { mode: 'simulado' });
+        if (!finalText || !finalText.trim()) finalText = full;
+        if (!finalText || !finalText.trim()) throw new Error('Resposta vazia da IA');
 
-        if (!finalText || !finalText.trim()) {
-            throw new Error('Resposta vazia da IA');
+        // Se veio sem chave / erro, renderiza direto (já é mensagem útil)
+        if (finalText.includes('IA não configurada') || finalText.includes('Simulado indisponível') || finalText.includes('Não consegui gerar')) {
+            await ensureHighlighter();
+            content.innerHTML = await renderMarkdown(finalText);
+            return;
         }
 
-        // Detecta mensagem de chave não configurada e mantém como markdown renderizado (já é útil)
+        // 2ª passada automática: se o modelo cortou o gabarito, pede só o gabarito e anexa
+        if (!hasGabarito(finalText)) {
+            loading.innerHTML = '<span class="w-2 h-2 bg-amber-500 rounded-full animate-ping"></span> Questões prontas — gerando gabarito comentado...';
+            content.textContent = finalText + '\n\n▌ Gerando gabarito...';
+            const followUp = `O simulado acima sobre "${assuntos}" veio SEM gabarito. Gere AGORA a "## Parte 2 — Gabarito Comentado" completa para TODAS as ${qtd} questões dele (mesma ordem e mesmos enunciados). Para cada questão: resposta + comentário passo a passo + conceito-chave. Não repita as questões, só o gabarito.`;
+            let part2 = '';
+            const onDelta2 = (d, all) => { part2 = all; content.textContent = finalText + '\n\n' + part2 + ' ▌'; };
+            try {
+                part2 = await askGeminiTutor(followUp, null, null, [{ role: 'user', content: prompt }, { role: 'assistant', content: finalText.slice(0, 6000) }], groqModel, onDelta2, { mode: 'simulado' });
+            } catch {}
+            if (part2 && part2.trim() && hasGabarito(part2)) finalText = finalText + '\n\n---\n\n' + part2;
+            else if (part2 && part2.trim()) finalText = finalText + '\n\n---\n\n## Parte 2 — Gabarito Comentado\n\n' + part2;
+        }
+
         await ensureHighlighter();
-        const html = await renderMarkdown(finalText);
-        content.innerHTML = html;
+        content.innerHTML = await renderMarkdown(finalText);
         if (window.lucide) lucide.createIcons();
-        showToast(gotDelta ? 'Simulado gerado com sucesso!' : 'Simulado gerado!');
-        // scroll suave até o resultado
+        showToast(hasGabarito(finalText) ? 'Simulado + gabarito gerados!' : 'Simulado gerado (gabarito parcial — tente gerar de novo).');
         result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
         if (e.name === 'AbortError') {
@@ -2162,9 +2226,10 @@ async function gerarSimulado() {
     }
 }
 function copiarSimulado() {
-    const el = document.getElementById('sim-content');
+    const el = document.getElementById('sim-gen-content') || document.getElementById('sim-content');
     if (!el) return;
     const text = el.innerText || el.textContent;
+    if (!text.trim()) { showToast('Nada para copiar ainda.'); return; }
     navigator.clipboard.writeText(text).then(()=>showToast('Simulado copiado!')).catch(()=>showToast('Não foi possível copiar.'));
 }
 

@@ -96,14 +96,25 @@ CREATE TABLE IF NOT EXISTS public.academic_grades (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. MENSAGENS DO TUTOR IA
+-- 7. CONVERSAS DO TUTOR IA (estilo ChatGPT: vários chats por usuário)
+CREATE TABLE IF NOT EXISTS public.chat_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL DEFAULT 'Nova conversa',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7B. MENSAGENS DO TUTOR IA (vinculadas a uma conversa)
 CREATE TABLE IF NOT EXISTS public.chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    conversation_id UUID REFERENCES public.chat_conversations(id) ON DELETE CASCADE,
     sender TEXT NOT NULL DEFAULT 'user',
     message TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES public.chat_conversations(id) ON DELETE CASCADE;
 
 -- 8. SESSÕES DE POMODORO (métricas de estudo)
 CREATE TABLE IF NOT EXISTS public.pomodoro_sessions (
@@ -138,6 +149,8 @@ CREATE INDEX IF NOT EXISTS idx_events_date ON public.events(event_date);
 CREATE INDEX IF NOT EXISTS idx_materials_user ON public.materials(user_id);
 CREATE INDEX IF NOT EXISTS idx_materials_category ON public.materials(category);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_conv_user ON public.chat_conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_msg_conv ON public.chat_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_grades_user ON public.academic_grades(user_id);
 CREATE INDEX IF NOT EXISTS idx_pomodoro_user ON public.pomodoro_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_pomodoro_date ON public.pomodoro_sessions(session_date);
