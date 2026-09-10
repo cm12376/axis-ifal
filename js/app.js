@@ -129,7 +129,7 @@ async function renderMarkdown(text) {
 // --- ESTADO GLOBAL LOCAL ---
 let appState = {
     theme: localStorage.getItem('axis_theme') || 'light',
-    user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Maceió' },
+    user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Viçosa' },
     tasks: [],
     events: [],
     materials: [],
@@ -391,7 +391,7 @@ async function doLogout() {
     try { await apiLogout(); } catch (e) { /* ignore */ }
     appState = {
         theme: appState.theme,
-        user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Maceió' },
+        user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Viçosa' },
         tasks: [], events: [], materials: [], notifications: [], grades: [], pomodoroSessions: []
     };
     setAuthMode('login');
@@ -2090,33 +2090,74 @@ async function gerarSimulado() {
     const tipo = document.getElementById('sim-tipo')?.value || 'multipla';
     const qtd = document.getElementById('sim-qtd')?.value || '10';
     if (!assuntos) { showToast('Digite os assuntos da prova.'); return; }
+    if (assuntos.length < 3) { showToast('Descreva melhor os assuntos (mín. 3 caracteres).'); return; }
+
+    // Aviso precoce se IA não configurada (evita chamada inútil)
+    if (aiStatus.loaded && !aiStatus.userKey && !aiStatus.serverKey) {
+        showToast('Configure a IA em "Configurar IA" antes de gerar simulados.');
+    }
+
     const tipoLabel = tipo === 'multipla' ? 'múltipla escolha (4 alternativas A-D)' : tipo === 'discursiva' ? 'discursiva' : 'mista (metade múltipla escolha e metade discursiva)';
-    const prompt = `Crie um SIMULADO PERSONALIZADO com ${qtd} questões do tipo ${tipoLabel} sobre os seguintes assuntos: ${assuntos}. Para cada questão, apresente o enunciado, as alternativas (se for múltipla escolha) e ao final forneça o GABARITO COMENTADO passo a passo, explicando o porquê de cada resposta e o conceito envolvido. Use Markdown com títulos, listas e, quando houver fórmula, LaTeX entre $...$ ou $$...$$.`;
+    const prompt = `Gere um SIMULADO com ${qtd} questões do tipo ${tipoLabel} sobre: ${assuntos}. Siga rigorosamente a estrutura definida no system prompt de simulados (título, questões numeradas com enunciado e alternativas quando aplicável, depois gabarito comentado detalhado). Use Markdown e LaTeX com $...$ ou $$...$$ para fórmulas.`;
+
     const btn = document.getElementById('btn-gerar-simulado');
     const loading = document.getElementById('sim-loading');
     const result = document.getElementById('sim-result');
     const content = document.getElementById('sim-content');
-    btn.disabled = true; btn.innerHTML = 'Gerando...';
+
+    // UI: trava botão, mostra loading e já deixa o card de resultado visível para streaming
+    const originalBtnHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('opacity-70', 'cursor-not-allowed');
+    btn.innerHTML = '<span class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Gerando...';
     loading.classList.remove('hidden');
-    result.classList.add('hidden');
+    result.classList.remove('hidden');
+    content.innerHTML = '<p class="text-xs text-slate-400 animate-pulse">Gerando simulado — isso pode levar até 20s...</p>';
+    // garante que o ícone de loading não quebre o layout
+    if (window.lucide) lucide.createIcons();
+
     try {
-        const history = [];
         const groqModel = aiStatus.model || 'auto';
         let full = '';
-        const onDelta = (delta, all) => { full = all; content.textContent = full; };
-        // Usa o tutor com stream se disponível, senão fallback
-        const resp = await askGeminiTutor(prompt, null, null, history, groqModel, onDelta);
-        const finalText = resp || full;
+        let gotDelta = false;
+        const onDelta = (delta, all) => {
+            gotDelta = true;
+            full = all;
+            // streaming visível: mostra texto cru com cursor
+            content.textContent = full + ' ▌';
+            // mantém o loading visível mas com texto de progresso
+            loading.innerHTML = '<span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Escrevendo questões... ' + full.length + ' caracteres';
+        };
+
+        const resp = await askGeminiTutor(prompt, null, null, [], groqModel, onDelta, { mode: 'simulado' });
+        const finalText = (resp && resp.trim()) ? resp : full;
+
+        if (!finalText || !finalText.trim()) {
+            throw new Error('Resposta vazia da IA');
+        }
+
+        // Detecta mensagem de chave não configurada e mantém como markdown renderizado (já é útil)
         await ensureHighlighter();
         const html = await renderMarkdown(finalText);
         content.innerHTML = html;
-        result.classList.remove('hidden');
         if (window.lucide) lucide.createIcons();
+        showToast(gotDelta ? 'Simulado gerado com sucesso!' : 'Simulado gerado!');
+        // scroll suave até o resultado
+        result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
-        showToast('Erro ao gerar simulado: ' + (e.message || 'tente novamente'));
+        if (e.name === 'AbortError') {
+            showToast('Geração cancelada.');
+        } else {
+            console.error('gerarSimulado error:', e);
+            content.innerHTML = `<div class="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl p-3">⚠️ Erro ao gerar simulado: ${escapeHtml(e.message || 'tente novamente')}.<br><span class="text-slate-500">Verifique a chave em Configurar IA e tente com menos questões.</span></div>`;
+            showToast('Erro ao gerar simulado: ' + (e.message || 'tente novamente'));
+        }
     } finally {
-        btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Gerar Simulado';
+        btn.disabled = false;
+        btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        btn.innerHTML = originalBtnHtml;
         loading.classList.add('hidden');
+        loading.innerHTML = '<span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Gerando simulado com gabarito comentado...';
         if (window.lucide) lucide.createIcons();
     }
 }

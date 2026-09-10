@@ -6,7 +6,7 @@ import { encryptSecret, maskSecret, encryptionAvailable } from './_crypto.js';
 
 const VALID_MODELS = [
     'auto', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b',
-    'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound', 'gemma2-9b-it', 'qwen/qwen3.6-27b'
+    'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound', 'groq/compound-mini', 'gemma2-9b-it', 'qwen/qwen3-32b'
 ];
 
 export default async function handler(req, res) {

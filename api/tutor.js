@@ -4,30 +4,60 @@ import { ok, fail, getBody } from './_helpers.js';
 import { requireAuth } from './_auth.js';
 import { decryptSecret, encryptionAvailable } from './_crypto.js';
 
-const SYSTEM_PROMPT = `
-Você é o Tutor Virtual do IFAL (Instituto Federal de Alagoas - Campus Maceió).
-Seu papel é orientar os estudantes novatos com empatia, clareza e autoridade institucional.
+const SYSTEM_PROMPT_TUTOR = `
+Você é o Tutor Virtual do IFAL (Instituto Federal de Alagoas - Campus Viçosa).
+Seu papel é orientar os estudantes com empatia, clareza e autoridade institucional.
 Use linguagem pedagógica, acessível e sempre em Português do Brasil (PT-BR).
-Regras didáticas principais:
-1. Frequência Letiva: Lembrar que no IFAL o mínimo obrigatório de presença é 75%.
-2. 2ª Chamada: Explicar que o requerimento deve ser protocolado na CRA (Secretaria) em até 3 dias úteis.
-3. SIGAA: Orientar como acessar histórico, notas e submeter trabalhos em sigaa.ifal.edu.br.
-4. Assistência Estudantil: Explicar auxílio alimentação, bolsa permanência e iniciação tecnológica (PIBITI).
-5. Pomodoro: Incentivar 25 min de estudo com 5 min de pausa.
+
+Conhecimento institucional essencial:
+1. Frequência Letiva: mínimo obrigatório de 75% de presença por disciplina — abaixo disso é reprovação por falta (RFI).
+2. 2ª Chamada: requerimento na CRA (Coordenação de Registro Acadêmico) em até 3 dias úteis após a prova, com atestado/comprovante.
+3. SIGAA: acesso em sigaa.ifal.edu.br — histórico, notas, declarações e entrega de tarefas.
+4. Assistência Estudantil: auxílio alimentação/refeitório, bolsa permanência e bolsas de iniciação científica PIBITI/LIAV.
+5. Pomodoro: técnica de 25 min de foco + 5 min de pausa (4 ciclos = pausa longa).
 
 ## INTERPRETAÇÃO AUTOMÁTICA DE INTENÇÃO
-O estudante fala em linguagem natural, sem comandos especiais. Você deve IDENTIFICAR a intenção automaticamente e executá-la.
+O estudante fala em linguagem natural. Identifique a intenção e execute: explicar conceito, resumir, criar quiz, revisar, resolver exercício passo a passo, etc.
 
 ## REGRAS DE RESPOSTA
-- Adapte o nível da linguagem ao estudante.
-- Use Markdown (negrito, listas, blocos de código).
-- Use tabelas SOMENTE no formato Markdown válido com pipes |.
-- Para fórmulas matemáticas: SEMPRE use delimitadores $$...$$ (em bloco) ou $...$ (em linha).
+- Adapte o nível ao estudante (técnico em Informática, ensino médio integrado).
+- Use Markdown (negrito, listas, blocos de código). Código com syntax highlight quando houver.
+- Tabelas SOMENTE em Markdown válido com pipes |.
+- Fórmulas matemáticas: SEMPRE use $$...$$ (bloco) ou $...$ (linha) para KaTeX.
+- Quando receber imagem ou PDF, analise o conteúdo e responda com base nele.
+- Se não souber, diga com honestidade e sugira onde buscar (SIGAA, coordenação, professor).
 `;
 
-const DEFAULT_TEXT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound'];
+const SYSTEM_PROMPT_SIMULADO = `
+Você é um Gerador de Simulados Acadêmicos para o IFAL (Instituto Federal de Alagoas).
+Sua missão é criar provas/simulados personalizados de alta qualidade didática em Português do Brasil (PT-BR).
+
+## REGRAS OBRIGATÓRIAS DO SIMULADO
+1. Siga FIELMENTE a quantidade, o tipo e os assuntos pedidos pelo estudante.
+2. Tipos:
+   - múltipla escolha: 4 alternativas (A, B, C, D) + apenas 1 correta.
+   - discursiva: enunciado aberto que exige desenvolvimento/raciocínio.
+   - mista: metade múltipla escolha e metade discursiva (arredonde se ímpar).
+3. Estrutura da resposta em Markdown:
+   # Simulado — [tema(s)]
+   ## Questões
+   ### Questão 1 — [assunto] — [tipo]
+   Enunciado...
+   (alternativas A-D se for múltipla escolha)
+   ... repetir para todas ...
+   ---
+   ## Gabarito Comentado
+   **Questão 1 — Letra X** — explicação passo a passo do conceito, por que a alternativa está certa e por que as outras estão erradas.
+   (para discursivas: resposta modelo + critérios de correção)
+4. Nível: ensino médio técnico (IFAL). Se o assunto for vago, assuma nível médio e cubra fundamentos.
+5. Use LaTeX entre $...$ ou $$...$$ para fórmulas, e blocos de código quando for programação.
+6. Não mencione regras do IFAL (75%, CRA, SIGAA) a menos que o assunto do simulado seja sobre isso. Foque no conteúdo pedido.
+7. Seja rigoroso e didático no gabarito: explique o raciocínio, não só a resposta.
+`;
+
+const DEFAULT_TEXT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'deepseek-r1-distill-llama-70b', 'groq/compound', 'groq/compound-mini', 'openai/gpt-oss-20b'];
 const DEFAULT_PDF_MODELS = ['groq/compound', 'llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
-const VISION_MODELS = ['qwen/qwen3.6-27b', 'groq/compound'];
+const VISION_MODELS = ['groq/compound', 'groq/compound-mini', 'qwen/qwen3-32b', 'llama-3.3-70b-versatile'];
 
 function getServerKey() {
     const apiKey = (process.env.GROQ_API_KEY || '').trim();
@@ -67,17 +97,22 @@ export default async function handler(req, res) {
         }
 
         const body = await getBody(req);
-        const { messages = [], attachment = null, stream = false } = body;
+        const { messages = [], attachment = null, stream = false, mode = 'tutor' } = body;
         const selectedModel = body.selectedModel || user.groq_model || 'auto';
         const wantsStream = stream === true || req.headers.accept?.includes('text/event-stream');
+        const isSimuladoMode = mode === 'simulado';
 
         const isImage = attachment?.type === 'image';
         const hasPdf = attachment?.type === 'pdf';
 
         let models;
         if (isImage) {
-            if (selectedModel && selectedModel !== 'auto' && (selectedModel === 'qwen/qwen3.6-27b' || selectedModel === 'groq/compound')) {
+            const visionSet = new Set(VISION_MODELS);
+            if (selectedModel && selectedModel !== 'auto' && visionSet.has(selectedModel)) {
                 models = [selectedModel, ...VISION_MODELS.filter(m => m !== selectedModel)];
+            } else if (selectedModel && selectedModel !== 'auto') {
+                // modelo escolhido não tem visão: força fallback de visão mas tenta o escolhido primeiro se for texto
+                models = [selectedModel, ...VISION_MODELS];
             } else {
                 models = VISION_MODELS;
             }
@@ -100,19 +135,24 @@ export default async function handler(req, res) {
             userContent = messages[messages.length - 1]?.content || '';
         }
 
+        const systemPrompt = isSimuladoMode ? SYSTEM_PROMPT_SIMULADO : SYSTEM_PROMPT_TUTOR;
         const systemMessages = [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: systemPrompt },
             ...messages.slice(0, -1),
             { role: 'user', content: userContent }
         ];
 
         let lastError = null;
 
+        const generationParams = isSimuladoMode
+            ? { temperature: 0.7, max_tokens: 4000, top_p: 0.95 }
+            : { temperature: 0.6, max_tokens: 2500, top_p: 0.9 };
+
         // Se o cliente pediu stream, tenta streaming no primeiro modelo viável e faz proxy SSE
         if (wantsStream) {
             for (const model of models) {
                 try {
-                    const payload = { model, messages: systemMessages, stream: true };
+                    const payload = { model, messages: systemMessages, stream: true, ...generationParams };
                     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
@@ -169,7 +209,8 @@ export default async function handler(req, res) {
                 try {
                     const payload = {
                         model,
-                        messages: systemMessages
+                        messages: systemMessages,
+                        ...generationParams
                     };
 
                     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

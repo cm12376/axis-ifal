@@ -24,7 +24,7 @@ export default async function handler(req, res) {
             const result = await pool.query(
                 `INSERT INTO public.profiles (email, password_hash, full_name, course, campus)
                  VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                [email, passwordHash, full_name || 'Estudante Novato', course || 'Técnico em Informática', campus || 'Campus Maceió']
+                [email, passwordHash, full_name || 'Estudante Novato', course || 'Técnico em Informática', campus || 'Campus Viçosa']
             );
             await createSession(res, result.rows[0].id);
             return ok(res, sanitizeUser(result.rows[0]), 201);

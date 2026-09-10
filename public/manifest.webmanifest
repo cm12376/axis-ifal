@@ -1,7 +1,7 @@
 {
   "name": "AXIS IFAL - Plataforma de Gestão & Orientação",
   "short_name": "AXIS IFAL",
-  "description": "Gestão acadêmica, Kanban, calendário, simulador de notas, Pomodoro e tutor IA para o IFAL Campus Maceió.",
+  "description": "Gestão acadêmica, Kanban, calendário, simulador de notas, Pomodoro e tutor IA para o IFAL Campus Viçosa.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

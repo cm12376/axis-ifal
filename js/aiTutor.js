@@ -5,10 +5,11 @@
 
 // A chave da API nunca passa pelo navegador: quem fala com a Groq é /api/tutor,
 // usando a chave do estudante (cifrada no banco) ou a do servidor.
-export async function askGeminiTutor(query, attachment = null, signal = null, history = [], selectedModel = 'auto', onDelta = null) {
+export async function askGeminiTutor(query, attachment = null, signal = null, history = [], selectedModel = 'auto', onDelta = null, opts = {}) {
     if (!query && !attachment) return '';
 
     const hasOnDelta = typeof onDelta === 'function';
+    const mode = opts.mode === 'simulado' ? 'simulado' : 'tutor';
     try {
         const payload = {
             messages: [
@@ -17,7 +18,8 @@ export async function askGeminiTutor(query, attachment = null, signal = null, hi
             ],
             attachment,
             selectedModel,
-            stream: hasOnDelta
+            stream: hasOnDelta,
+            mode
         };
 
         const res = await fetch('/api/tutor', {
@@ -57,19 +59,29 @@ export async function askGeminiTutor(query, attachment = null, signal = null, hi
                     return data.text;
                 }
                 if (data.needsUserKey) {
-                    return NO_KEY_MESSAGE;
+                    return mode === 'simulado' ? NO_KEY_SIMULADO : NO_KEY_MESSAGE;
                 }
                 if (data.error) {
+                    if (mode === 'simulado') return getLocalSimuladoResponse(data.error);
                     if (attachment?.type === 'pdf') return getLocalPdfResponse(query, attachment.text, data.error);
                     return getLocalTutorResponse(query, data.error);
                 }
             }
+        } else {
+            // Erro HTTP sem streaming: tenta ler corpo
+            try {
+                const data = await res.json();
+                if (data?.needsUserKey) return mode === 'simulado' ? NO_KEY_SIMULADO : NO_KEY_MESSAGE;
+                if (data?.error) return mode === 'simulado' ? getLocalSimuladoResponse(data.error) : getLocalTutorResponse(query, data.error);
+            } catch {}
         }
     } catch (err) {
         if (err.name === 'AbortError') throw err;
         // Sem rede ou API indisponível: cai nas respostas locais.
+        if (mode === 'simulado') return getLocalSimuladoResponse(err.message);
     }
 
+    if (mode === 'simulado') return getLocalSimuladoResponse(null);
     if (attachment?.type === 'pdf') {
         return getLocalPdfResponse(query, attachment.text);
     }
@@ -85,6 +97,23 @@ Para conversar com o tutor inteligente, cadastre a sua chave da API Groq em **Co
 2. Cole a chave em **Configurar IA** e salve.
 
 Sua chave é guardada **criptografada** no banco de dados e nunca é exibida novamente.`;
+
+const NO_KEY_SIMULADO = `🔑 **IA não configurada — simulado indisponível.**
+
+Para gerar simulados você precisa configurar a IA:
+
+1. Crie uma chave gratuita em [console.groq.com/keys](https://console.groq.com/keys)
+2. Clique em **Configurar IA** (topo da tela) e cole a chave.
+3. Volte aqui e gere o simulado novamente.
+
+_Se o administrador já configurou \`GROQ_API_KEY\` no servidor, verifique se ela é válida._`;
+
+function getLocalSimuladoResponse(lastError = null) {
+    if (lastError) {
+        return `⚠️ **Não consegui gerar o simulado agora** (erro: ${lastError}).\n\n- Verifique se a chave da Groq está válida em **Configurar IA**.\n- Tente novamente em alguns segundos.\n- Se persistir, tente reduzir a quantidade de questões ou simplificar os assuntos.`;
+    }
+    return "⚠️ **Simulado indisponível offline.**\n\nO gerador de simulados precisa da IA online. Verifique sua conexão e se a chave da Groq está configurada em **Configurar IA**, depois tente novamente.";
+}
 
 function getLocalPdfResponse(query, pdfText, lastError = null) {
     if (lastError) {

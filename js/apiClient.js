@@ -18,7 +18,7 @@ function getLocalData() {
         }
     }
     const defaultState = {
-        user: { name: 'João Silva', course: 'Técnico em Informática', campus: 'Maceió' },
+        user: { name: 'João Silva', course: 'Técnico em Informática', campus: 'Viçosa' },
         tasks: [],
         events: [],
         materials: [],

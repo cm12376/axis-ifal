@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     password_hash TEXT,
     full_name TEXT NOT NULL DEFAULT 'Estudante Novato',
     course TEXT DEFAULT 'Técnico em Informática',
-    campus TEXT DEFAULT 'Campus Maceió',
+    campus TEXT DEFAULT 'Campus Viçosa',
     avatar_url TEXT DEFAULT '',
     -- Chave da API Groq do estudante, cifrada com AES-256-GCM (nunca em texto puro)
     groq_api_key_enc TEXT,
