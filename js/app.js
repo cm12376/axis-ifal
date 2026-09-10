@@ -2186,6 +2186,8 @@ async function gerarSimulado() {
         if (finalText.includes('IA não configurada') || finalText.includes('Simulado indisponível') || finalText.includes('Não consegui gerar')) {
             await ensureHighlighter();
             content.innerHTML = await renderMarkdown(finalText);
+            result.classList.remove('hidden');
+            result.scrollIntoView({ behavior: 'smooth', block: 'start' });
             return;
         }
 
@@ -2206,6 +2208,9 @@ async function gerarSimulado() {
         await ensureHighlighter();
         content.innerHTML = await renderMarkdown(finalText);
         if (window.lucide) lucide.createIcons();
+        // Garante que o bloco do resultado esteja visível embaixo do formulário
+        result.classList.remove('hidden');
+        loading.classList.add('hidden');
         showToast(hasGabarito(finalText) ? 'Simulado + gabarito gerados!' : 'Simulado gerado (gabarito parcial — tente gerar de novo).');
         result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
