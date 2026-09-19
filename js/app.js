@@ -2133,6 +2133,207 @@ window.handleNotifFileChange = handleNotifFileChange;
 window.playNotifSound = playNotifSound;
 window.gerarSimulado = gerarSimulado;
 window.copiarSimulado = copiarSimulado;
+window.responderSimulado = responderSimulado;
+window.verRespostaSimulado = verRespostaSimulado;
+
+let simData = [];
+let simAcertos = 0;
+let simRespondidas = 0;
+
+function sanitizarJsonSimulado(s) {
+    return s
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'");
+}
+
+function normalizarQuestoes(arr) {
+    if (!Array.isArray(arr)) return null;
+    const letras = { a: 0, b: 1, c: 2, d: 3, e: 4 };
+    const norm = arr.map((q) => {
+        if (!q || typeof q !== 'object') return null;
+        const tipo = q.tipo === 'discursiva' ? 'discursiva' : 'multipla';
+        const pergunta = String(q.pergunta || '').trim();
+        if (!pergunta) return null;
+        let alternativas = Array.isArray(q.alternativas) ? q.alternativas.map((a) => String(a)) : [];
+        let correta = q.correta;
+        if (typeof correta === 'string') {
+            const t = correta.trim().toLowerCase();
+            correta = t in letras ? letras[t] : parseInt(t, 10);
+        }
+        correta = Number(correta);
+        if (tipo === 'multipla') {
+            alternativas = alternativas.slice(0, 5);
+            if (alternativas.length < 2) return null;
+            if (!Number.isInteger(correta) || correta < 0 || correta >= alternativas.length) return null;
+        } else {
+            alternativas = [];
+            correta = -1;
+        }
+        return { tipo, pergunta, alternativas, correta, comentario: String(q.comentario || q.resposta || '') };
+    }).filter(Boolean);
+    return norm.length ? norm : null;
+}
+
+function extrairJsonSimulado(texto) {
+    if (!texto) return null;
+    const fence = texto.match(/```json\s*([\s\S]*?)```/i) || texto.match(/```\s*([\s\S]*?)```/);
+    const candidatos = [];
+    if (fence) candidatos.push(fence[1]);
+    candidatos.push(texto);
+    for (const candidato of candidatos) {
+        const inicio = candidato.indexOf('[');
+        const fim = candidato.lastIndexOf(']');
+        if (inicio === -1 || fim === -1 || fim <= inicio) continue;
+        const fatia = candidato.slice(inicio, fim + 1);
+        for (const tentativa of [fatia, sanitizarJsonSimulado(fatia)]) {
+            try {
+                const arr = JSON.parse(tentativa);
+                const norm = normalizarQuestoes(arr);
+                if (norm) return norm;
+            } catch {}
+        }
+    }
+    return null;
+}
+
+// A IA costuma ignorar o pedido de JSON e responder em Markdown
+// ("Parte 1 — Questões" + "Parte 2 — Gabarito Comentado"). Converte isso em quiz interativo.
+function extrairMarkdownSimulado(texto) {
+    if (!texto || texto.indexOf('Questão') === -1) return null;
+    const partes = texto.split(/Parte\s*2/i);
+    const parte1 = partes[0] || '';
+    const parte2 = partes.slice(1).join('Parte 2') || '';
+    const blocosQ = parte1.split(/Questão\s*(\d+)/i);
+    const questoes = new Map();
+    for (let i = 1; i < blocosQ.length; i += 2) {
+        const num = parseInt(blocosQ[i], 10);
+        const bloco = blocosQ[i + 1] || '';
+        if (!Number.isInteger(num) || questoes.has(num)) continue;
+        const linhas = bloco.split('\n');
+        // Remove linha de título (ex: "— Definição de IA") se for a primeira
+        let corpo = bloco.trim();
+        const alts = [];
+        const reAlt = /^[A-E]\)\s*(.+)$/;
+        let idxAlt = -1;
+        const antesAlts = [];
+        for (const ln of linhas) {
+            const t = ln.trim();
+            const m = t.match(reAlt);
+            if (m) { idxAlt = linhas.indexOf(ln); alts.push(m[1].trim()); }
+            else if (idxAlt === -1) antesAlts.push(ln);
+        }
+        if (alts.length < 2) continue;
+        // Pergunta = tudo antes da primeira alternativa, sem a linha de título ("— Tema")
+        let linhasPerg = antesAlts.map((l) => l.trim()).filter((l) => l.length);
+        if (linhasPerg.length && /^[—–-]/.test(linhasPerg[0])) linhasPerg.shift();
+        let pergunta = linhasPerg.join('\n').trim().replace(/\n{3,}/g, '\n\n').trim();
+        if (!pergunta) continue;
+        questoes.set(num, { tipo: 'multipla', pergunta, alternativas: alts.slice(0, 5), correta: -1, comentario: '' });
+    }
+    if (!questoes.size) return null;
+    // Gabarito: "Questão N — Resposta: X" + "Comentário: ..."
+    const blocosG = parte2.split(/Questão\s*(\d+)/i);
+    const letras = { a: 0, b: 1, c: 2, d: 3, e: 4 };
+    for (let i = 1; i < blocosG.length; i += 2) {
+        const num = parseInt(blocosG[i], 10);
+        const bloco = blocosG[i + 1] || '';
+        if (!questoes.has(num)) continue;
+        const mResp = bloco.match(/Resposta\s*:\s*([A-Ea-e])/);
+        const mCom = bloco.match(/Comentário\s*:\s*([\s\S]*?)(?:Conceito-chave\s*:|$)/i);
+        const q = questoes.get(num);
+        if (mResp && (q.correta === -1 || q.correta === undefined)) q.correta = letras[mResp[1].toLowerCase()];
+        if (mCom && !q.comentario) q.comentario = mCom[1].trim().replace(/\n{3,}/g, '\n\n');
+    }
+    const norm = [...questoes.entries()].sort((a, b) => a[0] - b[0]).map(([, q]) => q)
+        .filter((q) => Number.isInteger(q.correta) && q.correta >= 0 && q.correta < q.alternativas.length && q.comentario);
+    return norm.length ? norm : null;
+}
+
+function renderSimuladoInterativo(questoes) {
+    const content = document.getElementById('sim-content');
+    simData = questoes;
+    simAcertos = 0;
+    simRespondidas = 0;
+    content.innerHTML = `
+        <div class="flex items-center justify-between mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-xs font-bold">Pontuação: <span id="sim-score">0/${questoes.length}</span></span>
+            <span class="text-[11px] text-slate-500">Clique na alternativa para responder</span>
+        </div>
+        <div id="sim-questions" class="space-y-4"></div>
+    `;
+    const wrap = content.querySelector('#sim-questions');
+    questoes.forEach((q, qi) => {
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-xl border border-slate-200 dark:border-slate-800';
+        card.id = `sim-q-${qi}`;
+        const letras = ['A', 'B', 'C', 'D', 'E'];
+        let alts = '';
+        if (q.tipo === 'discursiva' || !q.alternativas || !q.alternativas.length) {
+            alts = `
+                <textarea id="sim-disc-${qi}" rows="2" placeholder="Digite sua resposta..." class="w-full mt-2 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"></textarea>
+                <button onclick="verRespostaSimulado(${qi})" class="mt-2 text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Ver resposta</button>
+            `;
+        } else {
+            alts = `<div class="space-y-2 mt-2">` + q.alternativas.map((alt, ai) => `
+                <button onclick="responderSimulado(${qi}, ${ai}, this)" data-q="${qi}" data-a="${ai}" class="sim-alt w-full text-left px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-xs transition">
+                    <span class="font-bold mr-2">${letras[ai] || ai + 1})</span><span>${escapeHtml(String(alt))}</span>
+                </button>
+            `).join('') + `</div>`;
+        }
+        card.innerHTML = `
+            <p class="text-xs font-bold mb-1">Questão ${qi + 1}</p>
+            <p class="text-sm mb-1">${escapeHtml(q.pergunta || '')}</p>
+            ${alts}
+            <div id="sim-feedback-${qi}" class="hidden mt-2 text-xs p-3 rounded-lg"></div>
+        `;
+        wrap.appendChild(card);
+    });
+}
+
+function atualizarPlacarSimulado() {
+    const el = document.getElementById('sim-score');
+    if (el) el.textContent = `${simAcertos}/${simData.length} (${simRespondidas} respondidas)`;
+}
+
+function responderSimulado(qi, ai, btnEl) {
+    const q = simData[qi];
+    if (!q || btnEl.closest(`#sim-q-${qi}`)?.dataset.done === '1') return;
+    const card = document.getElementById(`sim-q-${qi}`);
+    card.dataset.done = '1';
+    simRespondidas++;
+    const correta = Number(q.correta) === Number(ai);
+    if (correta) simAcertos++;
+    card.querySelectorAll('.sim-alt').forEach(b => {
+        b.disabled = true;
+        const idx = Number(b.dataset.a);
+        if (idx === Number(q.correta)) {
+            b.classList.add('!border-emerald-500', '!bg-emerald-100', 'dark:!bg-emerald-950/50');
+        } else if (idx === Number(ai) && !correta) {
+            b.classList.add('!border-rose-500', '!bg-rose-100', 'dark:!bg-rose-950/50');
+        } else {
+            b.classList.add('opacity-60');
+        }
+    });
+    const fb = document.getElementById(`sim-feedback-${qi}`);
+    fb.classList.remove('hidden');
+    fb.className = `mt-2 text-xs p-3 rounded-lg ${correta ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800'}`;
+    fb.innerHTML = `<p class="font-bold mb-1">${correta ? '✅ Certo!' : '❌ Errado.'}</p><p>${escapeHtml(q.comentario || '')}</p>`;
+    atualizarPlacarSimulado();
+}
+
+function verRespostaSimulado(qi) {
+    const q = simData[qi];
+    const card = document.getElementById(`sim-q-${qi}`);
+    if (!q || card.dataset.done === '1') return;
+    card.dataset.done = '1';
+    simRespondidas++;
+    const fb = document.getElementById(`sim-feedback-${qi}`);
+    fb.classList.remove('hidden');
+    fb.className = 'mt-2 text-xs p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800';
+    fb.innerHTML = `<p class="font-bold mb-1">💡 Resposta esperada:</p><p>${escapeHtml(q.comentario || q.resposta || '')}</p>`;
+    atualizarPlacarSimulado();
+}
 
 function hasGabarito(text) {
     const t = String(text || '').toLowerCase();
@@ -2153,7 +2354,6 @@ async function gerarSimulado() {
     const tipoLabel = tipo === 'multipla' ? 'múltipla escolha (4 alternativas A-D)' : tipo === 'discursiva' ? 'discursiva' : 'mista (metade múltipla escolha e metade discursiva)';
     // Prompt auto-contido: não depende só do system prompt — exige as 2 partes explicitamente
     const prompt = `Gere um SIMULADO COMPLETO com EXATAMENTE ${qtd} questões do tipo ${tipoLabel} sobre: ${assuntos}.\n\nOBRIGATÓRIO entregar as DUAS partes na MESMA resposta:\nPARTE 1 — QUESTÕES numeradas de 1 a ${qtd} (enunciado + alternativas A-D quando for múltipla escolha).\nPARTE 2 — GABARITO COMENTADO com TODAS as ${qtd} questões (resposta + explicação passo a passo do raciocínio + conceito-chave). É PROIBIDO omitir o gabarito ou qualquer questão dele.\n\nUse Markdown (# Simulado, ## Parte 1 — Questões, ### Questão N, ---, ## Parte 2 — Gabarito Comentado) e LaTeX $...$ ou $$...$$ para fórmulas.`;
-
     const btn = document.getElementById('btn-gerar-simulado');
     const loading = document.getElementById('sim-gen-loading');
     const result = document.getElementById('sim-gen-result');
@@ -2166,9 +2366,8 @@ async function gerarSimulado() {
     btn.innerHTML = '<span class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Gerando...';
     loading.classList.remove('hidden');
     result.classList.remove('hidden');
-    content.innerHTML = '<p class="text-xs text-slate-400 animate-pulse">Gerando simulado com gabarito — isso pode levar até 40s...</p>';
+    content.innerHTML = '<p class="text-xs text-slate-400 animate-pulse">Gerando seu simulado — isso pode levar até 40s...</p>';
     if (window.lucide) lucide.createIcons();
-
     try {
         const groqModel = aiStatus.model || 'auto';
         let full = '';
@@ -2205,8 +2404,14 @@ async function gerarSimulado() {
             else if (part2 && part2.trim()) finalText = finalText + '\n\n---\n\n## Parte 2 — Gabarito Comentado\n\n' + part2;
         }
 
-        await ensureHighlighter();
-        content.innerHTML = await renderMarkdown(finalText);
+        // Tenta o modo interativo (quiz clicável); se não der, mostra o texto
+        const questoes = (typeof extrairJsonSimulado === 'function' && extrairJsonSimulado(finalText)) || (typeof extrairMarkdownSimulado === 'function' && extrairMarkdownSimulado(finalText));
+        if (questoes && typeof renderSimuladoInterativo === 'function') {
+            renderSimuladoInterativo(questoes);
+        } else {
+            await ensureHighlighter();
+            content.innerHTML = await renderMarkdown(finalText);
+        }
         if (window.lucide) lucide.createIcons();
         // Garante que o bloco do resultado esteja visível embaixo do formulário
         result.classList.remove('hidden');
