@@ -2216,19 +2216,19 @@ function extrairMarkdownSimulado(texto) {
         // Remove linha de título (ex: "— Definição de IA") se for a primeira
         let corpo = bloco.trim();
         const alts = [];
-        const reAlt = /^[A-E]\)\s*(.+)$/;
+        const reAlt = /^(?:\*\*)?\(?([A-Ea-e])[\)\.\-:](?:\*\*)?\s*(.+)$/;
         let idxAlt = -1;
         const antesAlts = [];
         for (const ln of linhas) {
             const t = ln.trim();
             const m = t.match(reAlt);
-            if (m) { idxAlt = linhas.indexOf(ln); alts.push(m[1].trim()); }
+            if (m) { idxAlt = linhas.indexOf(ln); alts.push(m[2].replace(/\*\*$/g, '').trim()); }
             else if (idxAlt === -1) antesAlts.push(ln);
         }
         if (alts.length < 2) continue;
-        // Pergunta = tudo antes da primeira alternativa, sem a linha de título ("— Tema")
-        let linhasPerg = antesAlts.map((l) => l.trim()).filter((l) => l.length);
-        if (linhasPerg.length && /^[—–-]/.test(linhasPerg[0])) linhasPerg.shift();
+        // Pergunta = tudo antes da primeira alternativa, sem a linha de título ("— Tema", "###", etc.)
+        let linhasPerg = antesAlts.map((l) => l.trim().replace(/^[#>*\s]+/, '').replace(/\*\*/g, '').trim()).filter((l) => l.length);
+        if (linhasPerg.length > 1 && !linhasPerg[0].includes('?') && linhasPerg[0].length < 80) linhasPerg.shift();
         let pergunta = linhasPerg.join('\n').trim().replace(/\n{3,}/g, '\n\n').trim();
         if (!pergunta) continue;
         questoes.set(num, { tipo: 'multipla', pergunta, alternativas: alts.slice(0, 5), correta: -1, comentario: '' });
@@ -2241,11 +2241,11 @@ function extrairMarkdownSimulado(texto) {
         const num = parseInt(blocosG[i], 10);
         const bloco = blocosG[i + 1] || '';
         if (!questoes.has(num)) continue;
-        const mResp = bloco.match(/Resposta\s*:\s*([A-Ea-e])/);
+        const mResp = bloco.match(/Resposta\s*:?\s*\*{0,2}\s*\(?([A-Ea-e])\)?/);
         const mCom = bloco.match(/Comentário\s*:\s*([\s\S]*?)(?:Conceito-chave\s*:|$)/i);
         const q = questoes.get(num);
         if (mResp && (q.correta === -1 || q.correta === undefined)) q.correta = letras[mResp[1].toLowerCase()];
-        if (mCom && !q.comentario) q.comentario = mCom[1].trim().replace(/\n{3,}/g, '\n\n');
+        if (mCom && !q.comentario) q.comentario = mCom[1].replace(/\*\*/g, '').trim().replace(/\n{3,}/g, '\n\n');
     }
     const norm = [...questoes.entries()].sort((a, b) => a[0] - b[0]).map(([, q]) => q)
         .filter((q) => Number.isInteger(q.correta) && q.correta >= 0 && q.correta < q.alternativas.length && q.comentario);
