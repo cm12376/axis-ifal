@@ -2262,7 +2262,7 @@ function simMd(text) {
 }
 
 function renderSimuladoInterativo(questoes) {
-    const content = document.getElementById('sim-content');
+    const content = document.getElementById('sim-gen-content') || document.getElementById('sim-content');
     simData = questoes.map((q) => ({ ...q, userPick: -1, revealed: false }));
     simAcertos = 0;
     simRespondidas = 0;
