@@ -2135,6 +2135,8 @@ window.gerarSimulado = gerarSimulado;
 window.copiarSimulado = copiarSimulado;
 window.responderSimulado = responderSimulado;
 window.verRespostaSimulado = verRespostaSimulado;
+window.simVoltar = simVoltar;
+window.simAvancar = simAvancar;
 
 let simData = [];
 let simAcertos = 0;
@@ -2250,89 +2252,120 @@ function extrairMarkdownSimulado(texto) {
     return norm.length ? norm : null;
 }
 
+let simIndex = 0;
+
+function simMd(text) {
+    try {
+        const html = renderKatexBlocks(marked.parse(normalizeTableTabs(String(text || ''))));
+        return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
+    } catch { return escapeHtml(String(text || '')); }
+}
+
 function renderSimuladoInterativo(questoes) {
     const content = document.getElementById('sim-content');
-    simData = questoes;
+    simData = questoes.map((q) => ({ ...q, userPick: -1, revealed: false }));
     simAcertos = 0;
     simRespondidas = 0;
+    simIndex = 0;
     content.innerHTML = `
-        <div class="flex items-center justify-between mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-            <span class="text-xs font-bold">Pontuação: <span id="sim-score">0/${questoes.length}</span></span>
-            <span class="text-[11px] text-slate-500">Clique na alternativa para responder</span>
+        <div class="flex items-center gap-2 mb-4">
+            <div class="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-[#333] overflow-hidden">
+                <div id="sim-bar-fill" class="h-full rounded-full bg-slate-400 transition-all" style="width:0%"></div>
+            </div>
+            <span id="sim-progress" class="text-xs font-semibold whitespace-nowrap"></span>
+            <span id="sim-errors" class="text-[11px] font-bold text-white bg-rose-500 rounded-full px-2 py-0.5">✕ 0</span>
+            <span id="sim-hits" class="text-[11px] font-bold text-slate-900 bg-emerald-300 rounded-full px-2 py-0.5">✓ 0</span>
         </div>
-        <div id="sim-questions" class="space-y-4"></div>
+        <div id="sim-qwrap"></div>
+        <div class="flex items-center justify-between mt-4">
+            <button onclick="simVoltar()" class="px-5 py-2 rounded-full bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold">Voltar</button>
+            <button onclick="simAvancar()" class="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold">Avançar</button>
+        </div>
     `;
-    const wrap = content.querySelector('#sim-questions');
-    questoes.forEach((q, qi) => {
-        const card = document.createElement('div');
-        card.className = 'p-4 rounded-xl border border-slate-200 dark:border-slate-800';
-        card.id = `sim-q-${qi}`;
-        const letras = ['A', 'B', 'C', 'D', 'E'];
-        let alts = '';
-        if (q.tipo === 'discursiva' || !q.alternativas || !q.alternativas.length) {
-            alts = `
-                <textarea id="sim-disc-${qi}" rows="2" placeholder="Digite sua resposta..." class="w-full mt-2 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"></textarea>
-                <button onclick="verRespostaSimulado(${qi})" class="mt-2 text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Ver resposta</button>
-            `;
-        } else {
-            alts = `<div class="space-y-2 mt-2">` + q.alternativas.map((alt, ai) => `
-                <button onclick="responderSimulado(${qi}, ${ai}, this)" data-q="${qi}" data-a="${ai}" class="sim-alt w-full text-left px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-xs transition">
-                    <span class="font-bold mr-2">${letras[ai] || ai + 1})</span><span>${escapeHtml(String(alt))}</span>
-                </button>
-            `).join('') + `</div>`;
-        }
-        card.innerHTML = `
-            <p class="text-xs font-bold mb-1">Questão ${qi + 1}</p>
-            <p class="text-sm mb-1">${escapeHtml(q.pergunta || '')}</p>
-            ${alts}
-            <div id="sim-feedback-${qi}" class="hidden mt-2 text-xs p-3 rounded-lg"></div>
-        `;
-        wrap.appendChild(card);
-    });
+    renderSimQuestao();
 }
 
 function atualizarPlacarSimulado() {
-    const el = document.getElementById('sim-score');
-    if (el) el.textContent = `${simAcertos}/${simData.length} (${simRespondidas} respondidas)`;
+    const total = simData.length || 1;
+    const erros = simRespondidas - simAcertos;
+    const bar = document.getElementById('sim-bar-fill');
+    const prog = document.getElementById('sim-progress');
+    const err = document.getElementById('sim-errors');
+    const hits = document.getElementById('sim-hits');
+    if (bar) bar.style.width = `${Math.round(((simIndex + 1) / total) * 100)}%`;
+    if (prog) prog.textContent = `${simIndex + 1} / ${total}`;
+    if (err) err.textContent = `✕ ${erros}`;
+    if (hits) hits.textContent = `✓ ${simAcertos}`;
 }
 
-function responderSimulado(qi, ai, btnEl) {
-    const q = simData[qi];
-    if (!q || btnEl.closest(`#sim-q-${qi}`)?.dataset.done === '1') return;
-    const card = document.getElementById(`sim-q-${qi}`);
-    card.dataset.done = '1';
-    simRespondidas++;
-    const correta = Number(q.correta) === Number(ai);
-    if (correta) simAcertos++;
-    card.querySelectorAll('.sim-alt').forEach(b => {
-        b.disabled = true;
-        const idx = Number(b.dataset.a);
-        if (idx === Number(q.correta)) {
-            b.classList.add('!border-emerald-500', '!bg-emerald-100', 'dark:!bg-emerald-950/50');
-        } else if (idx === Number(ai) && !correta) {
-            b.classList.add('!border-rose-500', '!bg-rose-100', 'dark:!bg-rose-950/50');
+function renderSimQuestao() {
+    const wrap = document.getElementById('sim-qwrap');
+    const q = simData[simIndex];
+    if (!wrap || !q) return;
+    atualizarPlacarSimulado();
+    const letras = ['A', 'B', 'C', 'D', 'E'];
+    const done = q.userPick !== -1 || q.revealed;
+    let corpo = '';
+    if (q.tipo === 'discursiva' || !q.alternativas || !q.alternativas.length) {
+        if (done) {
+            corpo = `<div class="mt-3 p-4 rounded-2xl bg-white dark:bg-[#1e1e1e] border border-slate-200 dark:border-[#333]"><p class="text-xs font-bold mb-1">💡 Resposta esperada:</p><div class="text-sm chat-md">${simMd(q.comentario)}</div></div>`;
         } else {
-            b.classList.add('opacity-60');
+            corpo = `
+                <textarea id="sim-disc" rows="2" placeholder="Digite sua resposta..." class="w-full mt-3 px-3 py-2 border border-slate-200 dark:border-[#333] rounded-xl text-sm bg-white dark:bg-[#1e1e1e]"></textarea>
+                <button onclick="verRespostaSimulado()" class="mt-2 text-xs px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-bold">Ver resposta</button>
+            `;
         }
-    });
-    const fb = document.getElementById(`sim-feedback-${qi}`);
-    fb.classList.remove('hidden');
-    fb.className = `mt-2 text-xs p-3 rounded-lg ${correta ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800'}`;
-    fb.innerHTML = `<p class="font-bold mb-1">${correta ? '✅ Certo!' : '❌ Errado.'}</p><p>${escapeHtml(q.comentario || '')}</p>`;
-    atualizarPlacarSimulado();
+    } else {
+        corpo = '<div class="space-y-3 mt-3">' + q.alternativas.map((alt, ai) => {
+            const letra = letras[ai] || `${ai + 1}`;
+            const chosen = q.userPick === ai;
+            const isRight = Number(q.correta) === ai;
+            const base = 'w-full text-left px-4 py-3 rounded-2xl border text-sm transition bg-white dark:bg-[#1e1e1e] border-slate-200 dark:border-[#333]';
+            if (!done) {
+                return `<button onclick="responderSimulado(${ai})" class="sim-alt ${base} hover:border-emerald-500"><span class="font-semibold mr-2">${letra}.</span><span>${escapeHtml(String(alt))}</span></button>`;
+            }
+            let cls = base + ' opacity-50';
+            let linha = `<div class="flex items-center gap-2"><span class="font-semibold">${letra}.</span><span>${escapeHtml(String(alt))}</span>${chosen ? '<span class="text-xs text-slate-400">(Sua resposta)</span>' : ''}</div>`;
+            if (isRight) {
+                cls = base + ' !border-emerald-500';
+                linha += `<div class="flex justify-end mt-1"><span class="text-[11px] font-bold text-slate-900 bg-emerald-300 rounded-full px-2.5 py-1">✓ Resposta correta</span></div><div class="text-sm mt-2 chat-md">${simMd(q.comentario)}</div>`;
+            } else if (chosen) {
+                cls = base + ' !border-rose-500';
+                linha += `<div class="flex justify-end mt-1"><span class="text-[11px] font-bold text-white bg-rose-500 rounded-full px-2.5 py-1">✕ Incorretas</span></div><div class="text-sm mt-2 chat-md">${simMd(q.comentario)}</div>`;
+            }
+            return `<div class="${cls}">${linha}</div>`;
+        }).join('') + '</div>';
+    }
+    wrap.innerHTML = `
+        <p class="text-sm font-bold">Pergunta ${simIndex + 1}</p>
+        <div class="text-sm mt-1 chat-md">${simMd(q.pergunta)}</div>
+        ${corpo}
+    `;
 }
 
-function verRespostaSimulado(qi) {
-    const q = simData[qi];
-    const card = document.getElementById(`sim-q-${qi}`);
-    if (!q || card.dataset.done === '1') return;
-    card.dataset.done = '1';
+function simVoltar() {
+    if (simIndex > 0) { simIndex--; renderSimQuestao(); }
+}
+
+function simAvancar() {
+    if (simIndex < simData.length - 1) { simIndex++; renderSimQuestao(); }
+}
+
+function responderSimulado(ai) {
+    const q = simData[simIndex];
+    if (!q || q.userPick !== -1 || q.revealed) return;
+    q.userPick = Number(ai);
     simRespondidas++;
-    const fb = document.getElementById(`sim-feedback-${qi}`);
-    fb.classList.remove('hidden');
-    fb.className = 'mt-2 text-xs p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800';
-    fb.innerHTML = `<p class="font-bold mb-1">💡 Resposta esperada:</p><p>${escapeHtml(q.comentario || q.resposta || '')}</p>`;
-    atualizarPlacarSimulado();
+    if (Number(q.correta) === Number(ai)) simAcertos++;
+    renderSimQuestao();
+}
+
+function verRespostaSimulado() {
+    const q = simData[simIndex];
+    if (!q || q.userPick !== -1 || q.revealed) return;
+    q.revealed = true;
+    simRespondidas++;
+    renderSimQuestao();
 }
 
 function hasGabarito(text) {
