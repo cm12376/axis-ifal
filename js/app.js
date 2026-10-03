@@ -2137,6 +2137,13 @@ window.responderSimulado = responderSimulado;
 window.verRespostaSimulado = verRespostaSimulado;
 window.simVoltar = simVoltar;
 window.simAvancar = simAvancar;
+window.renderSimResultado = renderSimResultado;
+window.simRevisar = renderSimRevisao;
+window.simAprender = simAprender;
+window.simAbrirNovoTeste = simAbrirNovoTeste;
+window.simFecharNovoTeste = simFecharNovoTeste;
+window.simPill = simPill;
+window.simConfirmarNovoTeste = simConfirmarNovoTeste;
 
 let simData = [];
 let simAcertos = 0;
@@ -2172,7 +2179,7 @@ function normalizarQuestoes(arr) {
             alternativas = [];
             correta = -1;
         }
-        return { tipo, pergunta, alternativas, correta, comentario: String(q.comentario || q.resposta || '') };
+        return { tipo, pergunta, tema: String(q.tema || ''), alternativas, correta, comentario: String(q.comentario || q.resposta || '') };
     }).filter(Boolean);
     return norm.length ? norm : null;
 }
@@ -2228,10 +2235,11 @@ function extrairMarkdownSimulado(texto) {
         if (alts.length < 2) continue;
         // Pergunta = tudo antes da primeira alternativa, sem a linha de título ("— Tema", "###", etc.)
         let linhasPerg = antesAlts.map((l) => l.trim().replace(/^[#>*\s]+/, '').replace(/\*\*/g, '').trim()).filter((l) => l.length);
-        if (linhasPerg.length > 1 && !linhasPerg[0].includes('?') && linhasPerg[0].length < 80) linhasPerg.shift();
+        let tema = '';
+        if (linhasPerg.length > 1 && !linhasPerg[0].includes('?') && linhasPerg[0].length < 80) tema = linhasPerg.shift().replace(/^[—–\-\s]+/, '');
         let pergunta = linhasPerg.join('\n').trim().replace(/\n{3,}/g, '\n\n').trim();
         if (!pergunta) continue;
-        questoes.set(num, { tipo: 'multipla', pergunta, alternativas: alts.slice(0, 5), correta: -1, comentario: '' });
+        questoes.set(num, { tipo: 'multipla', tema, pergunta, alternativas: alts.slice(0, 5), correta: -1, comentario: '' });
     }
     if (!questoes.size) return null;
     // Gabarito: "Questão N — Resposta: X" + "Comentário: ..."
@@ -2349,7 +2357,11 @@ function simVoltar() {
 
 function simAvancar() {
     if (simIndex < simData.length - 1) { simIndex++; renderSimQuestao(); }
+    else if (simRespondidas > 0) renderSimResultado();
 }
+
+let simAssuntos = '';
+let simDif = 'igual';
 
 function responderSimulado(ai) {
     const q = simData[simIndex];
@@ -2358,6 +2370,7 @@ function responderSimulado(ai) {
     simRespondidas++;
     if (Number(q.correta) === Number(ai)) simAcertos++;
     renderSimQuestao();
+    simChecarFim();
 }
 
 function verRespostaSimulado() {
@@ -2366,6 +2379,171 @@ function verRespostaSimulado() {
     q.revealed = true;
     simRespondidas++;
     renderSimQuestao();
+    simChecarFim();
+}
+
+function simChecarFim() {
+    if (simRespondidas >= simData.length && simData.length) {
+        setTimeout(() => renderSimResultado(), 700);
+    }
+}
+
+function simTemas() {
+    const map = new Map();
+    simData.forEach((q) => {
+        const t = String(q.tema || '').trim() || 'Geral';
+        if (!map.has(t)) map.set(t, { tema: t, total: 0, acertos: 0, comentarios: [] });
+        const g = map.get(t);
+        g.total++;
+        if (Number(q.correta) === Number(q.userPick)) g.acertos++;
+        else if (q.comentario) g.comentarios.push(q.comentario);
+    });
+    return [...map.values()];
+}
+
+function renderSimResultado() {
+    const content = document.getElementById('sim-gen-content') || document.getElementById('sim-content');
+    if (!content || !simData.length) return;
+    const total = simData.length;
+    const puladas = total - simRespondidas;
+    const erros = simRespondidas - simAcertos;
+    const pct = Math.round((simAcertos / total) * 100);
+    const R = 80, CIRC = Math.PI * R;
+    const msg = pct >= 80 ? 'Você está indo muito bem! Continue fazendo um bom trabalho.'
+        : pct >= 50 ? 'Bom progresso! Revise os pontos abaixo e tente de novo.'
+        : 'Não desanime! Foque nas áreas a melhorar e refaça o teste.';
+    const grupos = simTemas();
+    const fortes = grupos.filter((g) => g.acertos === g.total);
+    const melhorar = grupos.filter((g) => g.acertos < g.total);
+    const li = (itens, vazio) => itens.length
+        ? '<ul class="space-y-3">' + itens.map((g) => `
+            <li class="flex gap-2 text-sm">
+                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span>
+                <div><span class="font-semibold">${escapeHtml(g.tema)}:</span> ${escapeHtml(vazio
+                    ? `Você demonstrou domínio (${g.acertos}/${g.total}).`
+                    : (g.comentarios[0] || 'Revise este conteúdo.').slice(0, 280))}</div>
+            </li>`).join('') + '</ul>'
+        : `<p class="text-sm text-slate-500">${vazio ? 'Nenhum ponto forte desta vez — continue tentando!' : 'Nada a melhorar. Excelente!'}</p>`;
+    content.innerHTML = `
+        <p class="text-center text-lg font-medium">Pontuação</p>
+        <div class="flex justify-center my-2">
+            <svg width="220" height="120" viewBox="0 0 200 110">
+                <defs><linearGradient id="simGauge" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#93c5fd"/><stop offset="100%" stop-color="#f9a8d4"/>
+                </linearGradient></defs>
+                <path d="M 20 100 A ${R} ${R} 0 0 1 180 100" fill="none" stroke="#333" stroke-width="10" stroke-linecap="round"/>
+                <path d="M 20 100 A ${R} ${R} 0 0 1 180 100" fill="none" stroke="url(#simGauge)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(pct / 100 * CIRC).toFixed(1)} ${CIRC.toFixed(1)}"/>
+                <text x="100" y="82" text-anchor="middle" fill="currentColor" font-size="18" font-weight="bold">${simAcertos}/${total}</text>
+                <text x="100" y="98" text-anchor="middle" fill="currentColor" font-size="11">Corretas</text>
+            </svg>
+        </div>
+        <p class="text-center text-xs text-slate-400">${puladas} pulada${puladas === 1 ? '' : 's'} • ${erros} incorreta${erros === 1 ? '' : 's'}</p>
+        <p class="text-lg mt-4 mb-6">${escapeHtml(msg)}</p>
+        <h3 class="text-base font-bold mb-2">Pontos fortes</h3>
+        <div class="mb-6">${li(fortes, true)}</div>
+        <h3 class="text-base font-bold mb-2">Áreas a melhorar</h3>
+        <div class="mb-6">${li(melhorar, false)}</div>
+        <h3 class="text-base font-bold mb-3">Continuar aprendendo</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            <button onclick="simRevisar()" class="text-left p-4 rounded-2xl bg-[#1e1e1e] dark:bg-[#1e1e1e] bg-slate-900 text-white">
+                <p class="font-bold">Revisar</p>
+                <p class="text-xs text-slate-400 font-semibold">Cartões didáticos</p>
+                <p class="text-xs mt-2 text-slate-300">Veja as perguntas com as respostas que você marcou.</p>
+            </button>
+            <button onclick="simAprender()" class="text-left p-4 rounded-2xl bg-[#1e1e1e] dark:bg-[#1e1e1e] bg-slate-900 text-white">
+                <p class="font-bold">Aprender</p>
+                <p class="text-xs text-slate-400 font-semibold">Guia de estudo</p>
+                <p class="text-xs mt-2 text-slate-300">Guia com base no conteúdo que você está estudando.</p>
+            </button>
+        </div>
+        <div id="sim-guia"></div>
+        <div class="flex items-center justify-between mt-2">
+            <button onclick="simRevisar()" class="text-xs text-slate-300 hover:underline">Revisão</button>
+            <button onclick="simAbrirNovoTeste()" class="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold">Fazer outro teste</button>
+        </div>
+    `;
+    const res = document.getElementById('sim-gen-result') || document.getElementById('sim-result');
+    if (res) { res.classList.remove('hidden'); res.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+
+function renderSimRevisao() {
+    const content = document.getElementById('sim-gen-content') || document.getElementById('sim-content');
+    if (!content) return;
+    const letras = ['A', 'B', 'C', 'D', 'E'];
+    content.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold">Revisão — suas respostas</h3>
+            <button onclick="renderSimResultado()" class="text-xs px-3 py-1.5 border border-slate-200 dark:border-[#333] rounded-full">Voltar ao resultado</button>
+        </div>
+        <div class="space-y-4">` + simData.map((q, qi) => {
+            const certa = Number(q.correta) === Number(q.userPick);
+            const linha = (txt, cls) => `<div class="px-4 py-3 rounded-2xl border text-sm bg-white dark:bg-[#1e1e1e] ${cls}">${txt}</div>`;
+            let corpo = '';
+            if (!q.alternativas || !q.alternativas.length) {
+                corpo = linha(`<div class="chat-md text-sm">${simMd(q.comentario)}</div>`, 'border-slate-200 dark:border-[#333]');
+            } else {
+                corpo = '<div class="space-y-3">' + q.alternativas.map((alt, ai) => {
+                    const isRight = Number(q.correta) === ai;
+                    const chosen = Number(q.userPick) === ai;
+                    let cls = 'border-slate-200 dark:border-[#333] opacity-60';
+                    let extra = '';
+                    if (isRight) { cls = '!border-emerald-500'; extra = `<div class="flex justify-end mt-1"><span class="text-[11px] font-bold text-slate-900 bg-emerald-300 rounded-full px-2.5 py-1">✓ Resposta correta</span></div><div class="text-sm mt-2 chat-md">${simMd(q.comentario)}</div>`; }
+                    else if (chosen) { cls = '!border-rose-500'; extra = `<div class="flex justify-end mt-1"><span class="text-[11px] font-bold text-white bg-rose-500 rounded-full px-2.5 py-1">✕ Incorretas</span></div><div class="text-sm mt-2 chat-md">${simMd(q.comentario)}</div>`; }
+                    return `<div class="${cls} px-4 py-3 rounded-2xl border text-sm bg-white dark:bg-[#1e1e1e]"><div class="flex items-center gap-2"><span class="font-semibold">${letras[ai]}.</span><span>${escapeHtml(String(alt))}</span>${chosen ? '<span class="text-xs text-slate-400">(Sua resposta)</span>' : ''}</div>${extra}</div>`;
+                }).join('') + '</div>';
+            }
+            return `<div><p class="text-sm font-bold">Pergunta ${qi + 1} ${certa ? '✓' : q.userPick === -1 ? '(pulada)' : '✕'}</p><div class="text-sm mt-1 chat-md">${simMd(q.pergunta)}</div><div class="mt-2">${corpo}</div></div>`;
+        }).join('') + `</div>
+        <div class="flex items-center justify-between mt-4">
+            <button onclick="renderSimResultado()" class="text-xs text-slate-300 hover:underline">Voltar ao resultado</button>
+            <button onclick="simAbrirNovoTeste()" class="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold">Fazer outro teste</button>
+        </div>`;
+    content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function simAprender() {
+    const box = document.getElementById('sim-guia');
+    if (!box) return;
+    const fracos = simTemas().filter((g) => g.acertos < g.total);
+    const assuntos = fracos.length ? fracos.map((g) => g.tema).join(', ') : simAssuntos;
+    box.innerHTML = '<p class="text-xs text-slate-400 animate-pulse">Gerando guia de estudo...</p>';
+    try {
+        const resp = await askGeminiTutor(`Crie um GUIA DE ESTUDO direto e organizado sobre: ${assuntos}. Use títulos, tópicos, exemplos e fórmulas em LaTeX quando preciso. Foque nos erros comuns.`, null, null, [], aiStatus.model || 'auto', null, { mode: 'tutor' });
+        await ensureHighlighter();
+        box.innerHTML = `<div class="mt-2 p-4 rounded-2xl border border-slate-200 dark:border-[#333]"><div class="text-sm chat-md">${await renderMarkdown(resp || '')}</div></div>`;
+        if (window.lucide) lucide.createIcons();
+    } catch (e) { box.innerHTML = `<p class="text-xs text-rose-500">Não foi possível gerar o guia: ${escapeHtml(e.message || '')}</p>`; }
+}
+
+// --- Modal "Fazer outro teste" ---
+let simNovo = { foco: 'todos', qtd: '10', custom: '', dif: 'igual' };
+function simAbrirNovoTeste() { const m = document.getElementById('sim-novo-modal'); if (m) { m.classList.remove('hidden'); if (window.lucide) lucide.createIcons(); } }
+function simFecharNovoTeste() { const m = document.getElementById('sim-novo-modal'); if (m) m.classList.add('hidden'); }
+function simPill(grupo, valor, el) {
+    simNovo[grupo] = valor;
+    el.parentElement.querySelectorAll('button').forEach((b) => {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('bg-[#1e1e1e]', 'dark:bg-[#1e1e1e]', 'bg-slate-900', 'text-white');
+    });
+    el.classList.remove('bg-[#1e1e1e]', 'dark:bg-[#1e1e1e]', 'bg-slate-900');
+    el.classList.add('bg-blue-600', 'text-white');
+    const cust = document.getElementById('sim-novo-custom');
+    if (cust) cust.classList.toggle('hidden', !(grupo === 'qtd' && valor === 'custom'));
+}
+function simConfirmarNovoTeste() {
+    const fracos = simTemas().filter((g) => g.acertos < g.total).map((g) => g.tema);
+    const campo = document.getElementById('sim-assuntos');
+    if (simNovo.foco === 'areas' && fracos.length && campo) campo.value = fracos.join(', ');
+    const qtdSel = document.getElementById('sim-qtd');
+    let qtd = simNovo.qtd;
+    if (qtd === 'custom') {
+        const v = parseInt((document.getElementById('sim-novo-customqtd') || {}).value || '0', 10);
+        qtd = String(Math.min(30, Math.max(1, v || 10)));
+    }
+    if (qtdSel) { if (![...qtdSel.options].some((o) => o.value === qtd)) { const o = document.createElement('option'); o.value = qtd; o.textContent = `${qtd} questões`; qtdSel.appendChild(o); } qtdSel.value = qtd; }
+    simDif = simNovo.dif;
+    simFecharNovoTeste();
+    gerarSimulado();
 }
 
 function hasGabarito(text) {
@@ -2384,9 +2562,11 @@ async function gerarSimulado() {
         showToast('Configure a IA em "Configurar IA" antes de gerar simulados.');
     }
 
+    simAssuntos = assuntos;
     const tipoLabel = tipo === 'multipla' ? 'múltipla escolha (4 alternativas A-D)' : tipo === 'discursiva' ? 'discursiva' : 'mista (metade múltipla escolha e metade discursiva)';
+    const difLabel = simDif === 'facil' ? 'Nível MAIS FÁCIL que o anterior (conceitos básicos).' : simDif === 'dificil' ? 'Nível MAIS DIFÍCIL que o anterior (avançado, com pegadinhas).' : 'Mesmo nível de dificuldade do anterior (praticamente igual).';
     // Prompt auto-contido: não depende só do system prompt — exige as 2 partes explicitamente
-    const prompt = `Gere um SIMULADO COMPLETO com EXATAMENTE ${qtd} questões do tipo ${tipoLabel} sobre: ${assuntos}.\n\nOBRIGATÓRIO entregar as DUAS partes na MESMA resposta:\nPARTE 1 — QUESTÕES numeradas de 1 a ${qtd} (enunciado + alternativas A-D quando for múltipla escolha).\nPARTE 2 — GABARITO COMENTADO com TODAS as ${qtd} questões (resposta + explicação passo a passo do raciocínio + conceito-chave). É PROIBIDO omitir o gabarito ou qualquer questão dele.\n\nUse Markdown (# Simulado, ## Parte 1 — Questões, ### Questão N, ---, ## Parte 2 — Gabarito Comentado) e LaTeX $...$ ou $$...$$ para fórmulas.`;
+    const prompt = `Gere um SIMULADO COMPLETO com EXATAMENTE ${qtd} questões do tipo ${tipoLabel} sobre: ${assuntos}.\n${difLabel}\n\nOBRIGATÓRIO entregar as DUAS partes na MESMA resposta:\nPARTE 1 — QUESTÕES numeradas de 1 a ${qtd} (enunciado + alternativas A-D quando for múltipla escolha).\nPARTE 2 — GABARITO COMENTADO com TODAS as ${qtd} questões (resposta + explicação passo a passo do raciocínio + conceito-chave). É PROIBIDO omitir o gabarito ou qualquer questão dele.\n\nUse Markdown (# Simulado, ## Parte 1 — Questões, ### Questão N, ---, ## Parte 2 — Gabarito Comentado) e LaTeX $...$ ou $$...$$ para fórmulas.`;
     const btn = document.getElementById('btn-gerar-simulado');
     const loading = document.getElementById('sim-gen-loading');
     const result = document.getElementById('sim-gen-result');

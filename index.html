@@ -1392,6 +1392,38 @@
                     </div>
                 </section>
 
+                <!-- MODAL: FAZER OUTRO TESTE -->
+                <div id="sim-novo-modal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div class="bg-[#141414] dark:bg-[#141414] bg-slate-900 text-white rounded-2xl max-w-md w-full shadow-2xl p-6 relative">
+                        <h3 class="text-base font-bold mb-4">Adicionar perguntas</h3>
+                        <p class="text-sm font-semibold mb-2">Foco</p>
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="simPill('foco','todos',this)" class="px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-semibold">✓ Todos os assuntos</button>
+                            <button onclick="simPill('foco','areas',this)" class="px-4 py-2 rounded-full bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold border border-[#333]">Áreas de melhoria</button>
+                        </div>
+                        <p class="text-sm font-semibold mb-2">Número de perguntas</p>
+                        <div class="flex gap-2 mb-1">
+                            <button onclick="simPill('qtd','5',this)" class="px-4 py-2 rounded-xl bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold border border-[#333]">5</button>
+                            <button onclick="simPill('qtd','10',this)" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">✓ 10</button>
+                            <button onclick="simPill('qtd','20',this)" class="px-4 py-2 rounded-xl bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold border border-[#333]">20</button>
+                            <button onclick="simPill('qtd','custom',this)" class="px-4 py-2 rounded-xl bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold border border-[#333]">Personalizado ✎</button>
+                        </div>
+                        <div id="sim-novo-custom" class="hidden mb-4">
+                            <input type="number" id="sim-novo-customqtd" min="1" max="30" value="10" class="w-24 px-3 py-2 rounded-xl text-xs bg-slate-900 dark:bg-[#2a2a2a] border border-[#333] text-white">
+                        </div>
+                        <p class="text-sm font-semibold mb-2">Dificuldade</p>
+                        <div class="flex gap-2 mb-6">
+                            <button onclick="simPill('dif','facil',this)" class="px-4 py-2 rounded-xl bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold border border-[#333]">Mais fácil</button>
+                            <button onclick="simPill('dif','igual',this)" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">✓ Praticamente igual</button>
+                            <button onclick="simPill('dif','dificil',this)" class="px-4 py-2 rounded-xl bg-slate-900 dark:bg-[#2a2a2a] text-white text-xs font-semibold border border-[#333]">Mais difícil</button>
+                        </div>
+                        <div class="flex items-center justify-end gap-3">
+                            <button onclick="simFecharNovoTeste()" class="text-xs text-slate-300 hover:underline">Cancelar</button>
+                            <button onclick="simConfirmarNovoTeste()" class="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold">Adicionar perguntas</button>
+                        </div>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
