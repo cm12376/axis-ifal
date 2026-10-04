@@ -2421,7 +2421,7 @@ function renderSimResultado() {
                 <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span>
                 <div><span class="font-semibold">${escapeHtml(g.tema)}:</span> ${escapeHtml(vazio
                     ? `Você demonstrou domínio (${g.acertos}/${g.total}).`
-                    : (g.comentarios[0] || 'Revise este conteúdo.').slice(0, 280))}</div>
+                    : (g.comentarios[0] || 'Revise este conteúdo.'))}</div>
             </li>`).join('') + '</ul>'
         : `<p class="text-sm text-slate-500">${vazio ? 'Nenhum ponto forte desta vez — continue tentando!' : 'Nada a melhorar. Excelente!'}</p>`;
     content.innerHTML = `
