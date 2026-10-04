@@ -170,6 +170,16 @@
                         <!-- Glow decorativo superior -->
                         <div class="absolute -top-px left-10 right-10 h-px bg-gradient-to-r from-transparent via-emerald-500 to-transparent"></div>
 
+                        <!-- Abas Aluno / Professor -->
+                        <div class="grid grid-cols-2 gap-1 p-1 mb-6 bg-slate-950/60 border border-slate-800 rounded-xl">
+                            <button id="auth-tab-aluno" onclick="setAuthRole('aluno')" class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition">
+                                <i data-lucide="graduation-cap" class="w-4 h-4"></i> Aluno
+                            </button>
+                            <button id="auth-tab-professor" onclick="setAuthRole('professor')" class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition">
+                                <i data-lucide="presentation" class="w-4 h-4"></i> Professor
+                            </button>
+                        </div>
+
                         <div class="flex items-center justify-between mb-6">
                             <div>
                                 <h2 id="auth-title" class="text-lg sm:text-xl font-black text-white">Entrar na Plataforma</h2>

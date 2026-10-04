@@ -51,8 +51,8 @@ async function request(path, options = {}) {
 }
 
 // === AUTENTICAÇÃO (login/senha via Neon) ===
-export async function apiRegister(email, password, full_name) {
-    return request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, full_name }) });
+export async function apiRegister(email, password, full_name, role = 'aluno') {
+    return request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, full_name, role }) });
 }
 
 export async function apiLogin(email, password) {

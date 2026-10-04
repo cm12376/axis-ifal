@@ -197,6 +197,28 @@ let pomoCurrentMode = 'foco';
 
 // --- AUTENTICAÇÃO (LOGIN / REGISTO) ---
 let authMode = 'login';
+let authRole = 'aluno';
+
+function setAuthRole(role) {
+    authRole = role === 'professor' ? 'professor' : 'aluno';
+    paintAuthRole();
+}
+
+function paintAuthRole() {
+    const alunoBtn = document.getElementById('auth-tab-aluno');
+    const profBtn = document.getElementById('auth-tab-professor');
+    const active = 'bg-emerald-500 text-slate-950';
+    const idle = 'text-slate-400 hover:text-white';
+    if (alunoBtn) alunoBtn.className = `flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${authRole === 'aluno' ? active : idle}`;
+    if (profBtn) profBtn.className = `flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${authRole === 'professor' ? active : idle}`;
+    const isLogin = authMode === 'login';
+    const titleEl = document.getElementById('auth-title');
+    if (titleEl) {
+        const quem = authRole === 'professor' ? 'Professor' : 'Aluno';
+        titleEl.innerText = isLogin ? `Entrar como ${quem}` : `Criar conta de ${quem}`;
+    }
+    if (window.lucide) lucide.createIcons();
+}
 
 async function boot() {
     applyStoredTheme();
@@ -342,6 +364,7 @@ async function handleNotifFileChange(input) {
 function showAuthScreen() {
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app-shell').classList.add('hidden');
+    paintAuthRole();
     if (window.lucide) lucide.createIcons();
 }
 
@@ -365,6 +388,7 @@ function setAuthMode(mode) {
     if (toggleBtn) toggleBtn.innerText = isLogin ? 'Criar Conta' : 'Entrar';
     const errorEl = document.getElementById('auth-error');
     if (errorEl) errorEl.classList.add('hidden');
+    paintAuthRole();
     if (window.lucide) lucide.createIcons();
 }
 
@@ -410,12 +434,20 @@ async function submitAuthForm() {
         if (authMode === 'login') {
             await apiLogin(email, password);
         } else {
-            await apiRegister(email, password, fullName || 'Estudante Novato');
+            await apiRegister(email, password, fullName || (authRole === 'professor' ? 'Professor(a)' : 'Estudante Novato'), authRole);
         }
         document.getElementById('auth-email').value = '';
         document.getElementById('auth-password').value = '';
         document.getElementById('auth-name').value = '';
         const user = await apiGetCurrentUser();
+        if ((user.role || 'aluno') !== authRole) {
+            await apiLogout().catch(() => {});
+            const certa = user.role === 'professor' ? 'Professor' : 'Aluno';
+            setAuthRole(user.role || 'aluno');
+            errorEl.innerText = `Esta conta é de ${certa.toLowerCase()}. Troquei para a aba ${certa} — clique em Entrar de novo.`;
+            errorEl.classList.remove('hidden');
+            return;
+        }
         appState.user.name = user.full_name;
         showApp();
         await initApp();
@@ -2563,6 +2595,7 @@ function setHeaderDate() {
 
 // --- BIND DE FUNÇÕES AO WINDOW ---
 window.toggleAuthMode = toggleAuthMode;
+window.setAuthRole = setAuthRole;
 window.submitAuthForm = submitAuthForm;
 window.doLogout = doLogout;
 window.changeTab = changeTab;

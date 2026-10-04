@@ -13,6 +13,7 @@ export default async function handler(req, res) {
             const body = await getBody(req);
             const email = (body.email || '').trim().toLowerCase();
             const { password, full_name, course, campus } = body;
+            const role = body.role === 'professor' ? 'professor' : 'aluno';
 
             if (!email || !password) return fail(res, 'E-mail e senha são obrigatórios', 400);
             if (password.length < 6) return fail(res, 'A senha deve ter pelo menos 6 caracteres', 400);
@@ -22,9 +23,9 @@ export default async function handler(req, res) {
 
             const passwordHash = hashPassword(password);
             const result = await pool.query(
-                `INSERT INTO public.profiles (email, password_hash, full_name, course, campus)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                [email, passwordHash, full_name || 'Estudante Novato', course || 'Técnico em Informática', campus || 'Campus Viçosa']
+                `INSERT INTO public.profiles (email, password_hash, full_name, course, campus, role)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                [email, passwordHash, full_name || (role === 'professor' ? 'Professor(a)' : 'Estudante Novato'), course || 'Técnico em Informática', campus || 'Campus Viçosa', role]
             );
             await createSession(res, result.rows[0].id);
             return ok(res, sanitizeUser(result.rows[0]), 201);
