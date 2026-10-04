@@ -172,9 +172,22 @@ function isProfessor() {
     return appState.user.role === 'professor';
 }
 
+const PROF_TABS = ['dashboard', 'calendar', 'tasks', 'simulados', 'assistant'];
+
 function toggleProfessorNav() {
-    const btn = document.getElementById('btn-professor');
-    if (btn) btn.style.display = isProfessor() ? '' : 'none';
+    const prof = isProfessor();
+    const btnProf = document.getElementById('btn-professor');
+    if (btnProf) btnProf.style.display = 'none';
+    // Professor vê só: Painel Principal, Agenda, Kanban, Simulados e Tutor
+    ['guide', 'materials', 'performance', 'metrics', 'turmas'].forEach(t => {
+        const b = document.getElementById(`btn-${t}`);
+        if (b) b.style.display = prof ? 'none' : '';
+    });
+    if (prof) {
+        const cur = document.querySelector('.nav-btn.active');
+        const curTab = cur ? cur.id.replace('btn-', '') : '';
+        if (!PROF_TABS.includes(curTab)) changeTab('dashboard');
+    }
 }
 
 const CATEGORY_LABELS = {
@@ -573,6 +586,7 @@ function applyStoredTheme() {
 
 // --- NAVEGAÇÃO DE TABS ---
 function changeTab(tabName) {
+    if (isProfessor() && !PROF_TABS.includes(tabName)) tabName = 'dashboard';
     document.querySelectorAll('main > section').forEach(sect => sect.classList.add('hidden'));
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
 
