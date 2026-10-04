@@ -13,6 +13,8 @@
     { "source": "/api/pomodoro/:path*", "destination": "/api/pomodoro" },
     { "source": "/api/profile/:path*", "destination": "/api/profile" },
     { "source": "/api/push/:path*", "destination": "/api/push" },
+    { "source": "/api/turmas/:path*", "destination": "/api/turmas" },
+    { "source": "/api/avisos/:path*", "destination": "/api/avisos" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "trailingSlash": false,

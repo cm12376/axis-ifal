@@ -182,11 +182,19 @@ export async function apiFetchEvents() {
     catch (e) { if (e.status === 401) throw e; return getLocalData().events; }
 }
 
+export async function apiUpdateEvent(id, eventData) {
+    return request('/events', { method: 'PUT', body: JSON.stringify({
+        id, title: eventData.title, date: eventData.date || eventData.event_date,
+        event_type: eventData.type || eventData.event_type, description: eventData.description
+    }) });
+}
+
 export async function apiCreateEvent(eventData) {
     try {
         return await request('/events', { method: 'POST', body: JSON.stringify({
             title: eventData.title, date: eventData.date || eventData.event_date,
-            event_type: eventData.type || eventData.event_type
+            event_type: eventData.type || eventData.event_type,
+            description: eventData.description, turma_id: eventData.turma_id || null
         }) });
     } catch (e) {
         const local = getLocalData();
@@ -424,4 +432,51 @@ export async function apiSaveGroqKey(name, apiKey, model) {
     const payload = { full_name: name, groq_model: model };
     if (typeof apiKey === 'string') payload.groq_api_key = apiKey;
     return request('/profile', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
+// --- TURMAS (painel do professor) ---
+export async function apiFetchTurmas() {
+    return request('/turmas');
+}
+export async function apiCreateTurma(data) {
+    return request('/turmas', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function apiUpdateTurma(id, data) {
+    return request('/turmas?action=update', { method: 'PATCH', body: JSON.stringify({ id, ...data }) });
+}
+export async function apiRenewCodigo(id) {
+    return request('/turmas?action=renew', { method: 'POST', body: JSON.stringify({ id }) });
+}
+export async function apiToggleConvite(id) {
+    return request('/turmas?action=toggle', { method: 'POST', body: JSON.stringify({ id }) });
+}
+export async function apiDeleteTurma(id) {
+    return request(`/turmas?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+export async function apiFetchMembros(turmaId) {
+    return request(`/turmas?action=members&id=${encodeURIComponent(turmaId)}`);
+}
+export async function apiJoinTurma(codigo) {
+    return request('/turmas?action=join', { method: 'POST', body: JSON.stringify({ codigo }) });
+}
+export async function apiRemoveMembro(turmaId, userId) {
+    return request(`/turmas?action=remove&id=${encodeURIComponent(turmaId)}&user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+export async function apiLeaveTurma(turmaId) {
+    return request(`/turmas?action=remove&id=${encodeURIComponent(turmaId)}`, { method: 'DELETE' });
+}
+
+// --- AVISOS (mural do aluno) ---
+export async function apiFetchAvisos() {
+    try { return await request('/avisos'); }
+    catch (e) { if (e.status === 401) throw e; return []; }
+}
+export async function apiCreateAviso(data) {
+    return request('/avisos', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function apiUpdateAviso(id, data) {
+    return request('/avisos', { method: 'PUT', body: JSON.stringify({ id, ...data }) });
+}
+export async function apiDeleteAviso(id) {
+    return request(`/avisos?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

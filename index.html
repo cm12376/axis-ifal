@@ -738,6 +738,14 @@
                     <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
                     Tutor Virtual
                 </button>
+                <button onclick="changeTab('turmas')" id="btn-turmas" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    Minhas Turmas
+                </button>
+                <button onclick="changeTab('professor')" id="btn-professor" style="display:none" class="nav-btn flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-semibold tracking-wide transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white [&.active]:bg-emerald-600 [&.active]:text-white">
+                    <i data-lucide="presentation" class="w-4 h-4"></i>
+                    Painel do Professor
+                </button>
             </nav>
 
             <!-- Painel Pomodoro Integrado -->
@@ -1392,6 +1400,107 @@
                     </div>
                 </section>
 
+                <!-- TAB: MINHAS TURMAS (aluno) -->
+                <section id="tab-turmas" class="space-y-6 hidden">
+                    <div>
+                        <h2 class="text-xl font-bold">Minhas Turmas</h2>
+                        <p class="text-xs text-slate-500">Entre com o código do professor e acompanhe avisos e eventos.</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Código de convite</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="join-codigo" placeholder="Ex: A1B2C3" class="flex-1 px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 uppercase font-mono">
+                            <button onclick="joinTurmaByCode()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">Entrar</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold mb-3">Turmas que participo</h3>
+                        <div id="turmas-aluno-list" class="space-y-3"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold mb-3">📢 Mural de avisos</h3>
+                        <div id="mural-avisos-list" class="space-y-3"></div>
+                    </div>
+                </section>
+
+                <!-- TAB: PAINEL DO PROFESSOR -->
+                <section id="tab-professor" class="space-y-6 hidden">
+                    <div>
+                        <h2 class="text-xl font-bold">Painel do Professor</h2>
+                        <p class="text-xs text-slate-500">Crie turmas, gerencie alunos, publique avisos e agende eventos.</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                        <h3 class="text-sm font-bold">Nova turma</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <input type="text" id="prof-turma-nome" placeholder="Nome (ex: 1º Ano A)" class="px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                            <input type="text" id="prof-turma-disciplina" placeholder="Disciplina (ex: Física)" class="px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                            <input type="text" id="prof-turma-semestre" placeholder="Semestre (ex: 2026.1)" class="px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <button onclick="submitNovaTurma()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">Criar turma</button>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div>
+                            <h3 class="text-sm font-bold mb-3">Suas turmas</h3>
+                            <div id="prof-turmas-list" class="space-y-3"></div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <div id="prof-turma-detail" class="hidden space-y-6">
+                                <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                                    <div class="flex items-center justify-between flex-wrap gap-2">
+                                        <h3 id="prof-turma-title" class="text-sm font-bold">Turma</h3>
+                                        <button onclick="deleteTurmaUI()" class="text-[10px] font-bold text-rose-500 hover:underline">Apagar turma</button>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-wrap p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <span class="text-xs">Código: <span id="prof-codigo" class="font-mono font-bold text-emerald-600">—</span></span>
+                                        <span id="prof-convite-status" class="text-[10px] font-bold text-emerald-600"></span>
+                                        <div class="flex gap-2 ml-auto">
+                                            <button onclick="renewCodigoUI()" class="text-[10px] font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">🔄 Renovar</button>
+                                            <button onclick="toggleConviteUI()" class="text-[10px] font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Ativar/Desativar</button>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="text" id="prof-edit-nome" placeholder="Nome" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                        <input type="text" id="prof-edit-disciplina" placeholder="Disciplina" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                        <input type="text" id="prof-edit-semestre" placeholder="Semestre" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                    </div>
+                                    <button onclick="updateProfTurma()" class="px-4 py-2 bg-slate-900 dark:bg-slate-800 text-white rounded-xl text-xs font-bold">Salvar dados</button>
+                                </div>
+                                <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                                    <h3 class="text-sm font-bold mb-3">Alunos (<span id="prof-membros-count">0</span>)</h3>
+                                    <div id="prof-membros-list" class="space-y-2"></div>
+                                </div>
+                                <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                                    <h3 class="text-sm font-bold">Publicar aviso</h3>
+                                    <input type="text" id="prof-aviso-titulo" placeholder="Título do aviso" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500">
+                                    <textarea id="prof-aviso-texto" rows="3" placeholder="Texto do aviso..." class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500"></textarea>
+                                    <div class="flex gap-2">
+                                        <button id="prof-aviso-submit" onclick="submitAviso()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">Publicar aviso</button>
+                                        <button id="prof-aviso-cancel" onclick="cancelAvisoEdit()" class="hidden px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold">Cancelar edição</button>
+                                    </div>
+                                    <div id="prof-avisos-list" class="space-y-2"></div>
+                                </div>
+                                <div class="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                                    <h3 class="text-sm font-bold">Agendar evento (prova, entrega, reunião)</h3>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="text" id="prof-evt-title" placeholder="Ex: Prova de Física" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                        <input type="date" id="prof-evt-date" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                        <select id="prof-evt-type" class="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900">
+                                            <option value="prova">Prova</option>
+                                            <option value="trabalho">Entrega de trabalho</option>
+                                            <option value="reuniao">Reunião</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button id="prof-evt-submit" onclick="submitProfEvento()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">Agendar</button>
+                                        <button id="prof-evt-cancel" onclick="cancelProfEventoEdit()" class="hidden px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold">Cancelar edição</button>
+                                    </div>
+                                    <div id="prof-eventos-list" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- MODAL: FAZER OUTRO TESTE -->
                 <div id="sim-novo-modal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
                     <div class="bg-[#141414] dark:bg-[#141414] bg-slate-900 text-white rounded-2xl max-w-md w-full shadow-2xl p-6 relative">
@@ -1552,6 +1661,14 @@
                 <div>
                     <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nome do Discente</label>
                     <input type="text" id="config-username" placeholder="Seu Nome Completo" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Papel na plataforma</label>
+                    <select id="config-role" class="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-emerald-500 dark:text-white">
+                        <option value="aluno">Aluno</option>
+                        <option value="professor">Professor</option>
+                    </select>
+                    <p class="text-[9px] text-slate-400 mt-1">Como professor, você libera o Painel do Professor para criar turmas e publicar avisos.</p>
                 </div>
 
                 <!-- Configuração IA GROQ -->

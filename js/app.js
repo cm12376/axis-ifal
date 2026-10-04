@@ -42,7 +42,22 @@ import {
     apiSubscribePush,
     apiSendTestPush,
     apiFetchTutorStatus,
-    apiSaveGroqKey
+    apiSaveGroqKey,
+    apiFetchTurmas,
+    apiCreateTurma,
+    apiUpdateTurma,
+    apiRenewCodigo,
+    apiToggleConvite,
+    apiDeleteTurma,
+    apiFetchMembros,
+    apiJoinTurma,
+    apiRemoveMembro,
+    apiLeaveTurma,
+    apiFetchAvisos,
+    apiCreateAviso,
+    apiUpdateAviso,
+    apiDeleteAviso,
+    apiUpdateEvent
 } from './apiClient.js';
 
 import { askGeminiTutor } from './aiTutor.js';
@@ -133,14 +148,34 @@ async function renderMarkdown(text) {
 // --- ESTADO GLOBAL LOCAL ---
 let appState = {
     theme: localStorage.getItem('axis_theme') || 'light',
-    user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Viçosa' },
+    user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Viçosa', role: 'aluno' },
     tasks: [],
     events: [],
     materials: [],
     notifications: [],
     grades: [],
-    pomodoroSessions: []
+    pomodoroSessions: [],
+    turmasProf: [],
+    turmasAluno: [],
+    avisos: []
 };
+
+// --- PAINEL DO PROFESSOR / TURMAS ---
+let profTurmaSel = null;
+let profMembros = [];
+let profAvisos = [];
+let profEventos = [];
+let profAvisoEditId = null;
+let profEventoEditId = null;
+
+function isProfessor() {
+    return appState.user.role === 'professor';
+}
+
+function toggleProfessorNav() {
+    const btn = document.getElementById('btn-professor');
+    if (btn) btn.style.display = isProfessor() ? '' : 'none';
+}
 
 const CATEGORY_LABELS = {
     algoritmos: 'Introdução a Algoritmos',
@@ -395,9 +430,12 @@ async function doLogout() {
     try { await apiLogout(); } catch (e) { /* ignore */ }
     appState = {
         theme: appState.theme,
-        user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Viçosa' },
-        tasks: [], events: [], materials: [], notifications: [], grades: [], pomodoroSessions: []
+        user: { name: 'Estudante Novato', course: 'Informática', campus: 'Campus Viçosa', role: 'aluno' },
+        tasks: [], events: [], materials: [], notifications: [], grades: [], pomodoroSessions: [],
+        turmasProf: [], turmasAluno: [], avisos: []
     };
+    profTurmaSel = null; profMembros = []; profAvisos = []; profEventos = [];
+    profAvisoEditId = null; profEventoEditId = null;
     setAuthMode('login');
     showAuthScreen();
 }
@@ -415,7 +453,7 @@ async function initApp() {
 
     // Carregar Dados Iniciais em Paralelo via Supabase / API Layer
     try {
-        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions, conversations] = await Promise.all([
+        const [tasks, events, materials, notifications, grades, profile, pomodoroSessions, conversations, turmas, avisos] = await Promise.all([
             apiFetchTasks(),
             apiFetchEvents(),
             apiFetchMaterials(),
@@ -423,7 +461,9 @@ async function initApp() {
             apiFetchGrades(),
             apiFetchProfile(),
             apiFetchPomodoroSessions(),
-            apiFetchConversations().catch(()=>[])
+            apiFetchConversations().catch(()=>[]),
+            apiFetchTurmas().catch(()=>({ como_professor: [], como_aluno: [] })),
+            apiFetchAvisos().catch(()=>[])
         ]);
 
         appState.tasks = tasks || [];
@@ -432,9 +472,13 @@ async function initApp() {
         appState.notifications = notifications || [];
         appState.grades = grades || [];
         appState.pomodoroSessions = pomodoroSessions || [];
+        appState.turmasProf = turmas.como_professor || [];
+        appState.turmasAluno = turmas.como_aluno || [];
+        appState.avisos = avisos || [];
 
         if (profile) {
             if (profile.full_name) appState.user.name = profile.full_name;
+            if (profile.role) appState.user.role = profile.role;
             if (profile.notif_sound) {
                 appState.user.notif_sound = profile.notif_sound;
                 localStorage.setItem('axis_notif_sound', profile.notif_sound);
@@ -446,12 +490,16 @@ async function initApp() {
         }
 
         updateUserLabels();
+        toggleProfessorNav();
         renderDashboard();
         renderTasks();
         renderCalendar();
         renderMaterials();
         renderNotifications();
         renderGradesSection();
+        renderTurmasAluno();
+        renderMuralAvisos();
+        if (isProfessor()) renderProfessor();
         // Carrega chats estilo ChatGPT (sidebar de conversas + mensagens da ativa)
         await loadConversations(conversations);
 
@@ -654,6 +702,10 @@ async function openConfigModal() {
     const icon = document.getElementById('icon-groq-visibility');
     if (icon) icon.setAttribute('data-lucide', 'eye');
 
+    // Papel (aluno/professor)
+    const roleSel = document.getElementById('config-role');
+    if (roleSel) roleSel.value = appState.user.role || 'aluno';
+
     // Som das notificações
     const soundSel = document.getElementById('config-notif-sound');
     const soundWrap = document.getElementById('config-custom-sound-wrap');
@@ -721,6 +773,7 @@ async function submitConfig() {
     const typedKey = groqKeyInput ? groqKeyInput.value.trim() : '';
     const model = groqModelSelect ? groqModelSelect.value : 'auto';
     const soundSel = document.getElementById('config-notif-sound')?.value || 'default';
+    const roleSel = document.getElementById('config-role')?.value || appState.user.role || 'aluno';
     const finalName = name || appState.user.name;
 
     try {
@@ -730,6 +783,16 @@ async function submitConfig() {
         showToast(err.message || 'Não foi possível salvar a chave de IA.');
         return;
     }
+
+    // Papel (aluno/professor) — libera o Painel do Professor
+    try {
+        if (roleSel !== appState.user.role) {
+            const updated = await apiUpdateProfile(finalName, { role: roleSel });
+            appState.user.role = updated.role || roleSel;
+            toggleProfessorNav();
+            if (isProfessor()) { await reloadTurmas(); renderProfessor(); }
+        }
+    } catch (e) { console.warn('Falha ao salvar papel:', e); }
 
     // Salva preferência de som local + servidor
     try {
@@ -1012,15 +1075,17 @@ function renderCalendar() {
         appState.events.forEach(e => {
             const item = document.createElement('div');
             item.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl flex justify-between items-center";
+            const turmaTag = e.turma_id ? `<span class="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 px-1.5 py-0.5 rounded ml-1">📚 ${escapeHtml(e.turma_nome || 'Turma')}</span>` : '';
+            const podeApagar = !e.turma_id || isProfessor();
             item.innerHTML = `
                 <div>
-                    <span class="text-[9px] font-bold uppercase text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">${e.event_type || e.type}</span>
+                    <span class="text-[9px] font-bold uppercase text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">${e.event_type || e.type}</span>${turmaTag}
                     <h4 class="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1">${e.title}</h4>
                     <p class="text-[10px] text-slate-400 mt-0.5">Data: ${formatDateDisplay(e.event_date || e.date)}</p>
                 </div>
-                <button onclick="window.deleteEvent('${e.id}')" class="text-slate-400 hover:text-rose-500 p-1.5 rounded transition">
+                ${podeApagar ? `<button onclick="window.deleteEvent('${e.id}')" class="text-slate-400 hover:text-rose-500 p-1.5 rounded transition">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                </button>
+                </button>` : ''}
             `;
             detailList.appendChild(item);
         });
@@ -1075,6 +1140,425 @@ async function deleteEvent(id) {
     renderCalendar();
     renderDashboard();
     showToast("Compromisso removido.");
+}
+
+// --- TURMAS: LADO DO ALUNO (entrar com código, mural) ---
+async function reloadTurmas() {
+    try {
+        const t = await apiFetchTurmas();
+        appState.turmasProf = t.como_professor || [];
+        appState.turmasAluno = t.como_aluno || [];
+    } catch {}
+    try { appState.avisos = await apiFetchAvisos(); } catch {}
+    renderTurmasAluno();
+    renderMuralAvisos();
+}
+
+function renderTurmasAluno() {
+    const list = document.getElementById('turmas-aluno-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!appState.turmasAluno.length) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Você ainda não entrou em nenhuma turma. Peça o código ao professor.</p>`;
+        return;
+    }
+    appState.turmasAluno.forEach(t => {
+        const card = document.createElement('div');
+        card.className = "p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between items-center";
+        card.innerHTML = `
+            <div>
+                <h4 class="text-xs font-bold">${escapeHtml(t.nome)}</h4>
+                <p class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(t.disciplina || '')} ${t.semestre ? '• ' + escapeHtml(t.semestre) : ''} • Prof. ${escapeHtml(t.professor_nome || '')}</p>
+            </div>
+            <button onclick="window.leaveTurma('${t.id}')" class="text-[10px] font-bold text-rose-500 hover:underline">Sair</button>
+        `;
+        list.appendChild(card);
+    });
+}
+
+async function joinTurmaByCode() {
+    const input = document.getElementById('join-codigo');
+    const codigo = (input?.value || '').trim();
+    if (!codigo) { showToast('Digite o código da turma.'); return; }
+    try {
+        const t = await apiJoinTurma(codigo);
+        input.value = '';
+        await reloadTurmas();
+        try { appState.events = await apiFetchEvents(); renderCalendar(); renderDashboard(); } catch {}
+        showToast(`Você entrou em "${t.nome}"!`);
+    } catch (e) { showToast(e.message || 'Código inválido.'); }
+}
+
+async function leaveTurma(id) {
+    if (!confirm('Sair desta turma? Você deixará de ver avisos e eventos dela.')) return;
+    try { await apiLeaveTurma(id); } catch {}
+    appState.turmasAluno = appState.turmasAluno.filter(t => String(t.id) !== String(id));
+    renderTurmasAluno();
+    await reloadTurmas();
+    try { appState.events = await apiFetchEvents(); renderCalendar(); } catch {}
+}
+
+function renderMuralAvisos() {
+    const list = document.getElementById('mural-avisos-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!appState.avisos.length) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Nenhum aviso das suas turmas por enquanto.</p>`;
+        return;
+    }
+    appState.avisos.forEach(a => {
+        const d = document.createElement('div');
+        d.className = "p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl";
+        d.innerHTML = `
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 px-1.5 py-0.5 rounded">📚 ${escapeHtml(a.turma_nome || 'Turma')}</span>
+                ${a.editado ? '<span class="text-[9px] font-bold uppercase text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded">✎ editado</span>' : ''}
+            </div>
+            <h4 class="text-xs font-bold mt-1.5">${escapeHtml(a.titulo)}</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">${escapeHtml(a.texto || '')}</p>
+            <p class="text-[10px] text-slate-400 mt-1.5">Prof. ${escapeHtml(a.professor_nome || '')} • ${formatDateDisplay(String(a.created_at || '').slice(0, 10))}</p>
+        `;
+        list.appendChild(d);
+    });
+}
+
+// --- PAINEL DO PROFESSOR ---
+async function submitNovaTurma() {
+    const nome = document.getElementById('prof-turma-nome')?.value.trim();
+    const disciplina = document.getElementById('prof-turma-disciplina')?.value.trim() || '';
+    const semestre = document.getElementById('prof-turma-semestre')?.value.trim() || '';
+    if (!nome) { showToast('Dê um nome para a turma.'); return; }
+    try {
+        const t = await apiCreateTurma({ nome, disciplina, semestre });
+        appState.turmasProf.unshift(t);
+        document.getElementById('prof-turma-nome').value = '';
+        document.getElementById('prof-turma-disciplina').value = '';
+        document.getElementById('prof-turma-semestre').value = '';
+        profTurmaSel = t.id;
+        renderProfessor();
+        await loadProfTurmaData();
+        showToast(`Turma criada! Código: ${t.codigo_convite}`);
+    } catch (e) { showToast(e.message || 'Erro ao criar turma.'); }
+}
+
+function renderProfessor() {
+    const list = document.getElementById('prof-turmas-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!profTurmaSel && appState.turmasProf.length) profTurmaSel = appState.turmasProf[0].id;
+    if (!appState.turmasProf.length) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Nenhuma turma ainda. Crie a primeira acima.</p>`;
+    }
+    appState.turmasProf.forEach(t => {
+        const b = document.createElement('button');
+        const active = String(t.id) === String(profTurmaSel);
+        b.className = `w-full text-left p-3 rounded-xl border transition ${active ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500'}`;
+        b.innerHTML = `
+            <p class="text-xs font-bold">${escapeHtml(t.nome)}</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(t.disciplina || '')} ${t.semestre ? '• ' + escapeHtml(t.semestre) : ''} • ${t.alunos ?? '?'} aluno(s)</p>
+            <p class="text-[10px] font-mono mt-1 ${t.convite_ativo ? 'text-emerald-600' : 'text-rose-500 line-through'}">Código: ${escapeHtml(t.codigo_convite || '—')}</p>
+        `;
+        b.onclick = () => { profTurmaSel = t.id; renderProfessor(); loadProfTurmaData(); };
+        list.appendChild(b);
+    });
+    renderProfTurmaHeader();
+}
+
+function profTurmaAtual() {
+    return appState.turmasProf.find(t => String(t.id) === String(profTurmaSel));
+}
+
+function renderProfTurmaHeader() {
+    const box = document.getElementById('prof-turma-detail');
+    const t = profTurmaAtual();
+    if (!box) return;
+    if (!t) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    document.getElementById('prof-turma-title').innerText = t.nome;
+    document.getElementById('prof-codigo').innerText = t.codigo_convite || '—';
+    document.getElementById('prof-convite-status').innerText = t.convite_ativo ? 'Convite ativo' : 'Convite desativado';
+    document.getElementById('prof-convite-status').className = 'text-[10px] font-bold ' + (t.convite_ativo ? 'text-emerald-600' : 'text-rose-500');
+    document.getElementById('prof-edit-nome').value = t.nome || '';
+    document.getElementById('prof-edit-disciplina').value = t.disciplina || '';
+    document.getElementById('prof-edit-semestre').value = t.semestre || '';
+    if (window.lucide) lucide.createIcons();
+}
+
+async function loadProfTurmaData() {
+    if (!profTurmaSel) return;
+    try { profMembros = await apiFetchMembros(profTurmaSel); } catch { profMembros = []; }
+    renderProfMembros();
+    try {
+        const all = await apiFetchAvisos();
+        appState.avisos = all || [];
+        profAvisos = (all || []).filter(a => String(a.turma_id) === String(profTurmaSel));
+    } catch { profAvisos = []; }
+    renderProfAvisos();
+    renderMuralAvisos();
+    try {
+        const evs = await apiFetchEvents();
+        appState.events = evs || [];
+        profEventos = (evs || []).filter(e => String(e.turma_id) === String(profTurmaSel));
+        renderCalendar();
+    } catch { profEventos = []; }
+    renderProfEventos();
+}
+
+async function updateProfTurma() {
+    const t = profTurmaAtual();
+    if (!t) return;
+    try {
+        const upd = await apiUpdateTurma(t.id, {
+            nome: document.getElementById('prof-edit-nome')?.value.trim() || t.nome,
+            disciplina: document.getElementById('prof-edit-disciplina')?.value.trim() ?? '',
+            semestre: document.getElementById('prof-edit-semestre')?.value.trim() ?? ''
+        });
+        Object.assign(t, upd);
+        renderProfessor();
+        showToast('Turma atualizada!');
+    } catch (e) { showToast(e.message || 'Erro ao atualizar.'); }
+}
+
+async function renewCodigoUI() {
+    const t = profTurmaAtual();
+    if (!t) return;
+    if (!confirm('Gerar um novo código? O anterior deixará de funcionar.')) return;
+    try {
+        const upd = await apiRenewCodigo(t.id);
+        Object.assign(t, upd);
+        renderProfessor();
+        showToast(`Novo código: ${upd.codigo_convite}`);
+    } catch (e) { showToast(e.message || 'Erro ao renovar.'); }
+}
+
+async function toggleConviteUI() {
+    const t = profTurmaAtual();
+    if (!t) return;
+    try {
+        const upd = await apiToggleConvite(t.id);
+        Object.assign(t, upd);
+        renderProfessor();
+        showToast(upd.convite_ativo ? 'Convite ativado!' : 'Convite desativado.');
+    } catch (e) { showToast(e.message || 'Erro.'); }
+}
+
+async function deleteTurmaUI() {
+    const t = profTurmaAtual();
+    if (!t) return;
+    if (!confirm(`Apagar a turma "${t.nome}"? Avisos, eventos e matrículas serão removidos.`)) return;
+    try { await apiDeleteTurma(t.id); } catch {}
+    appState.turmasProf = appState.turmasProf.filter(x => String(x.id) !== String(t.id));
+    profTurmaSel = appState.turmasProf[0]?.id || null;
+    renderProfessor();
+    loadProfTurmaData();
+    showToast('Turma apagada.');
+}
+
+function renderProfMembros() {
+    const list = document.getElementById('prof-membros-list');
+    const count = document.getElementById('prof-membros-count');
+    if (!list) return;
+    if (count) count.innerText = profMembros.length;
+    list.innerHTML = '';
+    if (!profMembros.length) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Nenhum aluno ainda. Compartilhe o código.</p>`;
+        return;
+    }
+    profMembros.forEach(m => {
+        const d = document.createElement('div');
+        d.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl flex justify-between items-center";
+        d.innerHTML = `
+            <div><p class="text-xs font-bold">${escapeHtml(m.nome || '')}</p><p class="text-[10px] text-slate-400">${escapeHtml(m.email || '')}</p></div>
+            <button onclick="window.removeMembro('${m.id}')" class="text-[10px] font-bold text-rose-500 hover:underline">Remover</button>
+        `;
+        list.appendChild(d);
+    });
+}
+
+async function removeMembro(userId) {
+    if (!profTurmaSel) return;
+    if (!confirm('Remover este aluno da turma?')) return;
+    try { await apiRemoveMembro(profTurmaSel, userId); } catch (e) { showToast(e.message || 'Erro.'); return; }
+    profMembros = profMembros.filter(m => String(m.id) !== String(userId));
+    renderProfMembros();
+    const t = profTurmaAtual();
+    if (t && t.alunos !== undefined) t.alunos = Math.max(0, (t.alunos || 1) - 1);
+    showToast('Aluno removido.');
+}
+
+// --- AVISOS (professor) ---
+async function submitAviso() {
+    if (!profTurmaSel) { showToast('Selecione uma turma.'); return; }
+    const titulo = document.getElementById('prof-aviso-titulo')?.value.trim();
+    const texto = document.getElementById('prof-aviso-texto')?.value.trim() || '';
+    if (!titulo) { showToast('Dê um título ao aviso.'); return; }
+    try {
+        if (profAvisoEditId) {
+            const upd = await apiUpdateAviso(profAvisoEditId, { titulo, texto });
+            const i = profAvisos.findIndex(a => String(a.id) === String(upd.id));
+            if (i !== -1) profAvisos[i] = upd;
+            profAvisoEditId = null;
+            document.getElementById('prof-aviso-cancel').classList.add('hidden');
+            document.getElementById('prof-aviso-submit').innerText = 'Publicar aviso';
+            showToast('Aviso editado! Alunos verão o selo "editado".');
+        } else {
+            const novo = await apiCreateAviso({ turma_id: profTurmaSel, titulo, texto });
+            profAvisos.unshift(novo);
+            showToast('Aviso publicado no mural!');
+        }
+        document.getElementById('prof-aviso-titulo').value = '';
+        document.getElementById('prof-aviso-texto').value = '';
+        renderProfAvisos();
+        appState.avisos = await apiFetchAvisos().catch(() => appState.avisos);
+        renderMuralAvisos();
+        try { appState.notifications = await apiFetchNotifications(); renderNotifications(); } catch {}
+    } catch (e) { showToast(e.message || 'Erro ao publicar.'); }
+}
+
+function editAvisoUI(id) {
+    const a = profAvisos.find(x => String(x.id) === String(id));
+    if (!a) return;
+    profAvisoEditId = id;
+    document.getElementById('prof-aviso-titulo').value = a.titulo || '';
+    document.getElementById('prof-aviso-texto').value = a.texto || '';
+    document.getElementById('prof-aviso-cancel').classList.remove('hidden');
+    document.getElementById('prof-aviso-submit').innerText = 'Salvar edição';
+    document.getElementById('prof-aviso-titulo').focus();
+}
+
+function cancelAvisoEdit() {
+    profAvisoEditId = null;
+    document.getElementById('prof-aviso-titulo').value = '';
+    document.getElementById('prof-aviso-texto').value = '';
+    document.getElementById('prof-aviso-cancel').classList.add('hidden');
+    document.getElementById('prof-aviso-submit').innerText = 'Publicar aviso';
+}
+
+async function deleteAvisoUI(id) {
+    if (!confirm('Apagar este aviso do mural?')) return;
+    try { await apiDeleteAviso(id); } catch (e) { showToast(e.message || 'Erro.'); return; }
+    profAvisos = profAvisos.filter(a => String(a.id) !== String(id));
+    renderProfAvisos();
+    appState.avisos = await apiFetchAvisos().catch(() => appState.avisos);
+    renderMuralAvisos();
+    showToast('Aviso apagado.');
+}
+
+function renderProfAvisos() {
+    const list = document.getElementById('prof-avisos-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!profAvisos.length) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Nenhum aviso publicado.</p>`;
+        return;
+    }
+    profAvisos.forEach(a => {
+        const d = document.createElement('div');
+        d.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl";
+        d.innerHTML = `
+            <div class="flex justify-between items-start gap-2">
+                <div>
+                    <p class="text-xs font-bold">${escapeHtml(a.titulo)} ${a.editado ? '<span class="text-[9px] font-bold uppercase text-amber-600">✎ editado</span>' : ''}</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5 whitespace-pre-wrap">${escapeHtml(a.texto || '')}</p>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window.editAvisoUI('${a.id}')" class="text-slate-400 hover:text-emerald-500 p-1" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="window.deleteAvisoUI('${a.id}')" class="text-slate-400 hover:text-rose-500 p-1" title="Apagar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </div>
+            </div>
+        `;
+        list.appendChild(d);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+// --- EVENTOS DA TURMA (professor agenda -> cai no calendário do aluno) ---
+async function submitProfEvento() {
+    if (!profTurmaSel) { showToast('Selecione uma turma.'); return; }
+    const title = document.getElementById('prof-evt-title')?.value.trim();
+    const date = document.getElementById('prof-evt-date')?.value;
+    const type = document.getElementById('prof-evt-type')?.value || 'prova';
+    if (!title || !date) { showToast('Preencha título e data.'); return; }
+    try {
+        if (profEventoEditId) {
+            const upd = await apiUpdateEvent(profEventoEditId, { title, date, type });
+            const i = profEventos.findIndex(e => String(e.id) === String(upd.id));
+            if (i !== -1) profEventos[i] = upd;
+            const j = appState.events.findIndex(e => String(e.id) === String(upd.id));
+            if (j !== -1) appState.events[j] = upd;
+            profEventoEditId = null;
+            document.getElementById('prof-evt-cancel').classList.add('hidden');
+            document.getElementById('prof-evt-submit').innerText = 'Agendar';
+            showToast('Evento atualizado!');
+        } else {
+            const novo = await apiCreateEvent({ title, date, type, turma_id: profTurmaSel });
+            profEventos.push(novo);
+            appState.events.push(novo);
+            showToast('Evento agendado! Caiu no calendário dos alunos.');
+        }
+        document.getElementById('prof-evt-title').value = '';
+        document.getElementById('prof-evt-date').value = '';
+        renderProfEventos();
+        renderCalendar();
+        renderDashboard();
+    } catch (e) { showToast(e.message || 'Erro ao agendar.'); }
+}
+
+function editProfEventoUI(id) {
+    const e = profEventos.find(x => String(x.id) === String(id));
+    if (!e) return;
+    profEventoEditId = id;
+    document.getElementById('prof-evt-title').value = e.title || '';
+    document.getElementById('prof-evt-date').value = (e.event_date || e.date || '').slice(0, 10);
+    document.getElementById('prof-evt-type').value = e.event_type || e.type || 'prova';
+    document.getElementById('prof-evt-cancel').classList.remove('hidden');
+    document.getElementById('prof-evt-submit').innerText = 'Salvar edição';
+}
+
+function cancelProfEventoEdit() {
+    profEventoEditId = null;
+    document.getElementById('prof-evt-title').value = '';
+    document.getElementById('prof-evt-date').value = '';
+    document.getElementById('prof-evt-cancel').classList.add('hidden');
+    document.getElementById('prof-evt-submit').innerText = 'Agendar';
+}
+
+async function deleteProfEventoUI(id) {
+    if (!confirm('Apagar este evento do calendário dos alunos?')) return;
+    try { await apiDeleteEvent(id); } catch (e) { showToast(e.message || 'Erro.'); return; }
+    profEventos = profEventos.filter(e => String(e.id) !== String(id));
+    appState.events = appState.events.filter(e => String(e.id) !== String(id));
+    renderProfEventos();
+    renderCalendar();
+    showToast('Evento apagado.');
+}
+
+function renderProfEventos() {
+    const list = document.getElementById('prof-eventos-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const sorted = [...profEventos].sort((a, b) => String(a.event_date || a.date).localeCompare(String(b.event_date || b.date)));
+    if (!sorted.length) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Nenhum evento agendado para esta turma.</p>`;
+        return;
+    }
+    sorted.forEach(e => {
+        const d = document.createElement('div');
+        d.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl flex justify-between items-center";
+        d.innerHTML = `
+            <div>
+                <span class="text-[9px] font-bold uppercase text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">${e.event_type || e.type}</span>
+                <h4 class="text-xs font-bold mt-1">${escapeHtml(e.title)}</h4>
+                <p class="text-[10px] text-slate-400">Data: ${formatDateDisplay(e.event_date || e.date)}</p>
+            </div>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="window.editProfEventoUI('${e.id}')" class="text-slate-400 hover:text-emerald-500 p-1" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                <button onclick="window.deleteProfEventoUI('${e.id}')" class="text-slate-400 hover:text-rose-500 p-1" title="Apagar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+        `;
+        list.appendChild(d);
+    });
+    if (window.lucide) lucide.createIcons();
 }
 
 // --- MATERIAIS DE ESTUDO ---
@@ -2098,6 +2582,22 @@ window.openAddEventModal = openAddEventModal;
 window.closeAddEventModal = closeAddEventModal;
 window.submitNewEvent = submitNewEvent;
 window.deleteEvent = deleteEvent;
+window.joinTurmaByCode = joinTurmaByCode;
+window.leaveTurma = leaveTurma;
+window.submitNovaTurma = submitNovaTurma;
+window.updateProfTurma = updateProfTurma;
+window.renewCodigoUI = renewCodigoUI;
+window.toggleConviteUI = toggleConviteUI;
+window.deleteTurmaUI = deleteTurmaUI;
+window.removeMembro = removeMembro;
+window.submitAviso = submitAviso;
+window.editAvisoUI = editAvisoUI;
+window.cancelAvisoEdit = cancelAvisoEdit;
+window.deleteAvisoUI = deleteAvisoUI;
+window.submitProfEvento = submitProfEvento;
+window.editProfEventoUI = editProfEventoUI;
+window.cancelProfEventoEdit = cancelProfEventoEdit;
+window.deleteProfEventoUI = deleteProfEventoUI;
 window.changeMonth = changeMonth;
 window.openAddMaterialModal = openAddMaterialModal;
 window.closeAddMaterialModal = closeAddMaterialModal;

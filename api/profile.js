@@ -49,6 +49,11 @@ export default async function handler(req, res) {
                     ? body.groq_model
                     : null;
 
+                const VALID_ROLES = ['aluno', 'professor'];
+                const role = typeof body.role === 'string' && VALID_ROLES.includes(body.role)
+                    ? body.role
+                    : null;
+
                 const VALID_SOUNDS = ['default', 'soft', 'bell', 'custom'];
                 const notifSound = typeof body.notif_sound === 'string' && VALID_SOUNDS.includes(body.notif_sound)
                     ? body.notif_sound
@@ -66,8 +71,9 @@ export default async function handler(req, res) {
                          groq_key_hint    = CASE WHEN $4::boolean THEN $6 ELSE groq_key_hint END,
                          groq_model = COALESCE($7, groq_model),
                          notif_sound = COALESCE($8, notif_sound),
+                         role = COALESCE($9, role),
                          updated_at = NOW()
-                     WHERE id = $9 RETURNING *`,
+                     WHERE id = $10 RETURNING *`,
                     [
                         body.full_name || body.name || user.full_name,
                         body.course,
@@ -77,6 +83,7 @@ export default async function handler(req, res) {
                         keyHint ?? null,
                         model,
                         notifSound,
+                        role,
                         user.id
                     ]
                 );

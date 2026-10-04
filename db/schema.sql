@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     groq_model TEXT DEFAULT 'auto',
     notif_sound TEXT DEFAULT 'default',
     notif_sound_custom TEXT,
+    role TEXT DEFAULT 'aluno',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -29,6 +30,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_key_hint TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_model TEXT DEFAULT 'auto';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notif_sound TEXT DEFAULT 'default';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notif_sound_custom TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'aluno';
 
 -- 1B. SESSÕES DE LOGIN (token guardado em cookie httpOnly)
 CREATE TABLE IF NOT EXISTS public.sessions (
@@ -153,4 +155,46 @@ CREATE INDEX IF NOT EXISTS idx_chat_conv_user ON public.chat_conversations(user_
 CREATE INDEX IF NOT EXISTS idx_chat_msg_conv ON public.chat_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_grades_user ON public.academic_grades(user_id);
 CREATE INDEX IF NOT EXISTS idx_pomodoro_user ON public.pomodoro_sessions(user_id);
+-- 10. TURMAS (painel do professor)
+CREATE TABLE IF NOT EXISTS public.turmas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    teacher_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    nome TEXT NOT NULL,
+    disciplina TEXT NOT NULL DEFAULT '',
+    semestre TEXT NOT NULL DEFAULT '',
+    codigo_convite TEXT UNIQUE,
+    convite_ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10B. ALUNOS DA TURMA
+CREATE TABLE IF NOT EXISTS public.turma_alunos (
+    turma_id UUID NOT NULL REFERENCES public.turmas(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (turma_id, user_id)
+);
+
+-- 11. AVISOS DA TURMA (mural do aluno)
+CREATE TABLE IF NOT EXISTS public.avisos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    turma_id UUID NOT NULL REFERENCES public.turmas(id) ON DELETE CASCADE,
+    teacher_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    titulo TEXT NOT NULL,
+    texto TEXT NOT NULL DEFAULT '',
+    editado BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Eventos de turma (caem no calendário dos alunos membros)
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS turma_id UUID REFERENCES public.turmas(id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS idx_turmas_teacher ON public.turmas(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_turmas_codigo ON public.turmas(codigo_convite);
+CREATE INDEX IF NOT EXISTS idx_turma_alunos_turma ON public.turma_alunos(turma_id);
+CREATE INDEX IF NOT EXISTS idx_turma_alunos_user ON public.turma_alunos(user_id);
+CREATE INDEX IF NOT EXISTS idx_avisos_turma ON public.avisos(turma_id);
+CREATE INDEX IF NOT EXISTS idx_events_turma ON public.events(turma_id);
 CREATE INDEX IF NOT EXISTS idx_pomodoro_date ON public.pomodoro_sessions(session_date);
