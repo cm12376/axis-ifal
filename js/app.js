@@ -874,6 +874,8 @@ function updateUserLabels() {
     const name = appState.user.name || 'Estudante Novato';
     document.getElementById('userNameLabel').innerText = name;
     document.getElementById('welcome-name').innerText = name;
+    const roleLabel = document.getElementById('userRoleLabel');
+    if (roleLabel) roleLabel.innerText = isProfessor() ? 'Professor' : 'Estudante';
 
     const title = document.getElementById('welcome-title');
     const subtitle = document.getElementById('welcome-subtitle');
