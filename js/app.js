@@ -172,16 +172,20 @@ function isProfessor() {
     return appState.user.role === 'professor';
 }
 
-const PROF_TABS = ['dashboard', 'calendar', 'tasks', 'simulados', 'assistant'];
+const PROF_TABS = ['dashboard', 'calendar', 'tasks', 'simulados', 'assistant', 'turmas', 'professor'];
 
 function toggleProfessorNav() {
     const prof = isProfessor();
     const btnProf = document.getElementById('btn-professor');
-    if (btnProf) btnProf.style.display = 'none';
-    // Professor vê só: Painel Principal, Agenda, Kanban, Simulados e Tutor
-    ['guide', 'materials', 'performance', 'metrics', 'turmas'].forEach(t => {
+    if (btnProf) btnProf.style.display = prof ? '' : 'none';
+    // Professor vê: Painel Principal, Agenda, Kanban, Simulados, Tutor + Minhas Turmas e Painel do Professor
+    ['guide', 'materials', 'performance', 'metrics'].forEach(t => {
         const b = document.getElementById(`btn-${t}`);
         if (b) b.style.display = prof ? 'none' : '';
+    });
+    ['turmas'].forEach(t => {
+        const b = document.getElementById(`btn-${t}`);
+        if (b) b.style.display = '';
     });
     if (prof) {
         const cur = document.querySelector('.nav-btn.active');
