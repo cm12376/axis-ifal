@@ -61,6 +61,9 @@ export default async function handler(req, res) {
                 const notifCustom = typeof body.notif_sound_custom === 'string' && body.notif_sound_custom.startsWith('data:audio')
                     ? body.notif_sound_custom.slice(0, 200000)
                     : null;
+                const avatarUrl = typeof body.avatar_url === 'string' && body.avatar_url.startsWith('data:image')
+                    ? body.avatar_url.slice(0, 300000)
+                    : (body.avatar_url === '' ? '' : null);
 
                 const result = await pool.query(
                     `UPDATE public.profiles
@@ -72,8 +75,9 @@ export default async function handler(req, res) {
                          groq_model = COALESCE($7, groq_model),
                          notif_sound = COALESCE($8, notif_sound),
                          role = COALESCE($9, role),
+                         avatar_url = COALESCE($10, avatar_url),
                          updated_at = NOW()
-                     WHERE id = $10 RETURNING *`,
+                     WHERE id = $11 RETURNING *`,
                     [
                         body.full_name || body.name || user.full_name,
                         body.course,
@@ -84,6 +88,7 @@ export default async function handler(req, res) {
                         model,
                         notifSound,
                         role,
+                        avatarUrl,
                         user.id
                     ]
                 );

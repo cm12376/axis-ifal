@@ -524,6 +524,7 @@ async function initApp() {
 
         if (profile) {
             if (profile.full_name) appState.user.name = profile.full_name;
+            if (profile.avatar_url) appState.user.avatar_url = profile.avatar_url;
             if (profile.role) appState.user.role = profile.role;
             if (profile.notif_sound) {
                 appState.user.notif_sound = profile.notif_sound;
@@ -890,9 +891,43 @@ function updateUserLabels() {
             : 'Central integrada da Plataforma Axis. Gerencie tarefas, prazos acadêmicos, calcule médias de aprovação e tire dúvidas com o Tutor Virtual.';
     }
 
-    const parts = name.split(' ');
-    const initials = parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].substring(0, 2);
-    document.getElementById('userAvatar').innerText = initials.toUpperCase();
+    const avatarEl = document.getElementById('userAvatar');
+    if (appState.user.avatar_url) {
+        avatarEl.innerHTML = `<img src="${appState.user.avatar_url}" alt="Foto de perfil" class="w-full h-full object-cover">`;
+    } else {
+        const parts = name.split(' ');
+        const initials = parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].substring(0, 2);
+        avatarEl.innerText = initials.toUpperCase();
+    }
+}
+
+function handleAvatarFile(input) {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Escolha um arquivo de imagem.'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = async () => {
+            try {
+                const max = 256;
+                const scale = Math.min(1, max / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                appState.user.avatar_url = dataUrl;
+                updateUserLabels();
+                await apiUpdateProfile(appState.user.name, { avatar_url: dataUrl });
+                showToast('Foto de perfil atualizada!');
+            } catch (err) { showToast(err.message || 'Não foi possível salvar a foto.'); }
+        };
+        img.onerror = () => showToast('Não foi possível ler a imagem.');
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 // --- RENDERIZAÇÃO DO DASHBOARD PRINCIPAL ---
@@ -2625,6 +2660,7 @@ function setHeaderDate() {
 
 // --- BIND DE FUNÇÕES AO WINDOW ---
 window.toggleAuthMode = toggleAuthMode;
+window.handleAvatarFile = handleAvatarFile;
 window.setAuthRole = setAuthRole;
 window.submitAuthForm = submitAuthForm;
 window.doLogout = doLogout;

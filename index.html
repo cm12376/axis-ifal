@@ -696,7 +696,8 @@
             <!-- Perfil Rápido -->
             <div class="p-4 mx-4 my-3 bg-slate-800/40 rounded-xl border border-slate-800/60">
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white shadow-sm" id="userAvatar">
+                    <input type="file" id="avatar-file" accept="image/*" class="hidden" onchange="handleAvatarFile(this)">
+                    <div onclick="document.getElementById('avatar-file').click()" title="Trocar foto de perfil" class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white shadow-sm cursor-pointer hover:ring-2 hover:ring-emerald-400 overflow-hidden shrink-0" id="userAvatar">
                         AN
                     </div>
                     <div class="truncate">
