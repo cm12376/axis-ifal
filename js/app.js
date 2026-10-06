@@ -183,6 +183,7 @@ function toggleProfessorNav() {
         const b = document.getElementById(`btn-${t}`);
         if (b) b.style.display = prof ? 'none' : '';
     });
+    updateUserLabels();
     if (prof) {
         const cur = document.querySelector('.nav-btn.active');
         const curTab = cur ? cur.id.replace('btn-', '') : '';
@@ -873,6 +874,19 @@ function updateUserLabels() {
     const name = appState.user.name || 'Estudante Novato';
     document.getElementById('userNameLabel').innerText = name;
     document.getElementById('welcome-name').innerText = name;
+
+    const title = document.getElementById('welcome-title');
+    const subtitle = document.getElementById('welcome-subtitle');
+    if (title) {
+        title.innerHTML = isProfessor()
+            ? `Olá, Prof. <span id="welcome-name" class="text-emerald-300">${escapeHtml(name)}</span>! Vamos organizar suas turmas?`
+            : `Olá, <span id="welcome-name" class="text-emerald-300">${escapeHtml(name)}</span>! Vamos gerenciar o seu sucesso?`;
+    }
+    if (subtitle) {
+        subtitle.innerText = isProfessor()
+            ? 'Publique avisos, agende provas e entregas e acompanhe suas turmas em um só lugar.'
+            : 'Central integrada da Plataforma Axis. Gerencie tarefas, prazos acadêmicos, calcule médias de aprovação e tire dúvidas com o Tutor Virtual.';
+    }
 
     const parts = name.split(' ');
     const initials = parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].substring(0, 2);
