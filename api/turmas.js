@@ -213,14 +213,14 @@ async function handleAvisos(req, res, user, method, url, action) {
         // POST /api/avisos -> publicar (professor dono da turma)
         if (method === 'POST' && !action) {
             const body = await getBody(req);
-            const { turma_id, titulo, texto = '' } = body;
+            const { turma_id, titulo, texto = '', link_url = '' } = body;
             if (!turma_id || !titulo || !titulo.trim()) return fail(res, 'Turma e título são obrigatórios', 400);
             const t = await pool.query('SELECT * FROM public.turmas WHERE id = $1 AND teacher_id = $2', [turma_id, user.id]);
             if (!t.rows.length) return fail(res, 'Turma não encontrada', 404);
             const result = await pool.query(
-                `INSERT INTO public.avisos (turma_id, teacher_id, titulo, texto)
-                 VALUES ($1, $2, $3, $4) RETURNING *`,
-                [turma_id, user.id, titulo.trim(), texto]
+                `INSERT INTO public.avisos (turma_id, teacher_id, titulo, texto, link_url)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                [turma_id, user.id, titulo.trim(), texto, String(link_url || '').slice(0, 2000)]
             );
             await notificarTurma(turma_id, t.rows[0].nome, `Novo aviso: ${titulo.trim()}`);
             return ok(res, result.rows[0], 201);
@@ -229,13 +229,14 @@ async function handleAvisos(req, res, user, method, url, action) {
         // PUT /api/avisos -> editar (marca editado)
         if (method === 'PUT' && !action) {
             const body = await getBody(req);
-            const { id, titulo, texto } = body;
+            const { id, titulo, texto, link_url } = body;
             if (!id) return fail(res, 'ID ausente', 400);
             const result = await pool.query(
                 `UPDATE public.avisos SET titulo = COALESCE($2, titulo), texto = COALESCE($3, texto),
+                 link_url = COALESCE($4, link_url),
                  editado = TRUE, updated_at = NOW()
-                 WHERE id = $1 AND teacher_id = $4 RETURNING *`,
-                [id, titulo ?? null, texto ?? null, user.id]
+                 WHERE id = $1 AND teacher_id = $5 RETURNING *`,
+                [id, titulo ?? null, texto ?? null, link_url !== undefined ? String(link_url).slice(0, 2000) : null, user.id]
             );
             if (!result.rows.length) return fail(res, 'Aviso não encontrado', 404);
             return ok(res, result.rows[0]);

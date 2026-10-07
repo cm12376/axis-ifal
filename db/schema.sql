@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS public.avisos (
     teacher_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     titulo TEXT NOT NULL,
     texto TEXT NOT NULL DEFAULT '',
+    link_url TEXT DEFAULT '',
     editado BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

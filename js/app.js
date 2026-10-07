@@ -1313,6 +1313,7 @@ function renderMuralAvisos() {
             </div>
             <h4 class="text-xs font-bold mt-1.5">${escapeHtml(a.titulo)}</h4>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">${escapeHtml(a.texto || '')}</p>
+            ${a.link_url ? `<a href="${escapeHtml(a.link_url)}" target="_blank" rel="noopener" class="text-xs text-emerald-600 hover:underline inline-flex items-center gap-1 mt-1.5">🔗 Abrir link anexado</a>` : ''}
             <p class="text-[10px] text-slate-400 mt-1.5">Prof. ${escapeHtml(a.professor_nome || '')} • ${formatDateDisplay(String(a.created_at || '').slice(0, 10))}</p>
         `;
         list.appendChild(d);
@@ -1488,10 +1489,11 @@ async function submitAviso() {
     if (!profTurmaSel) { showToast('Selecione uma turma.'); return; }
     const titulo = document.getElementById('prof-aviso-titulo')?.value.trim();
     const texto = document.getElementById('prof-aviso-texto')?.value.trim() || '';
+    const link = document.getElementById('prof-aviso-link')?.value.trim() || '';
     if (!titulo) { showToast('Dê um título ao aviso.'); return; }
     try {
         if (profAvisoEditId) {
-            const upd = await apiUpdateAviso(profAvisoEditId, { titulo, texto });
+            const upd = await apiUpdateAviso(profAvisoEditId, { titulo, texto, link_url: link });
             const i = profAvisos.findIndex(a => String(a.id) === String(upd.id));
             if (i !== -1) profAvisos[i] = upd;
             profAvisoEditId = null;
@@ -1499,12 +1501,13 @@ async function submitAviso() {
             document.getElementById('prof-aviso-submit').innerText = 'Publicar aviso';
             showToast('Aviso editado! Alunos verão o selo "editado".');
         } else {
-            const novo = await apiCreateAviso({ turma_id: profTurmaSel, titulo, texto });
+            const novo = await apiCreateAviso({ turma_id: profTurmaSel, titulo, texto, link_url: link });
             profAvisos.unshift(novo);
             showToast('Aviso publicado no mural!');
         }
         document.getElementById('prof-aviso-titulo').value = '';
         document.getElementById('prof-aviso-texto').value = '';
+        document.getElementById('prof-aviso-link').value = '';
         renderProfAvisos();
         appState.avisos = await apiFetchAvisos().catch(() => appState.avisos);
         renderMuralAvisos();
@@ -1518,6 +1521,7 @@ function editAvisoUI(id) {
     profAvisoEditId = id;
     document.getElementById('prof-aviso-titulo').value = a.titulo || '';
     document.getElementById('prof-aviso-texto').value = a.texto || '';
+    document.getElementById('prof-aviso-link').value = a.link_url || '';
     document.getElementById('prof-aviso-cancel').classList.remove('hidden');
     document.getElementById('prof-aviso-submit').innerText = 'Salvar edição';
     document.getElementById('prof-aviso-titulo').focus();
@@ -1527,6 +1531,7 @@ function cancelAvisoEdit() {
     profAvisoEditId = null;
     document.getElementById('prof-aviso-titulo').value = '';
     document.getElementById('prof-aviso-texto').value = '';
+    document.getElementById('prof-aviso-link').value = '';
     document.getElementById('prof-aviso-cancel').classList.add('hidden');
     document.getElementById('prof-aviso-submit').innerText = 'Publicar aviso';
 }
@@ -1557,6 +1562,7 @@ function renderProfAvisos() {
                 <div>
                     <p class="text-xs font-bold">${escapeHtml(a.titulo)} ${a.editado ? '<span class="text-[9px] font-bold uppercase text-amber-600">✎ editado</span>' : ''}</p>
                     <p class="text-[11px] text-slate-500 mt-0.5 whitespace-pre-wrap">${escapeHtml(a.texto || '')}</p>
+                    ${a.link_url ? `<a href="${escapeHtml(a.link_url)}" target="_blank" rel="noopener" class="text-[11px] text-emerald-600 hover:underline inline-flex items-center gap-1 mt-1">🔗 Abrir link</a>` : ''}
                 </div>
                 <div class="flex gap-1 shrink-0">
                     <button onclick="window.editAvisoUI('${a.id}')" class="text-slate-400 hover:text-emerald-500 p-1" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
