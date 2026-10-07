@@ -31,6 +31,8 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS groq_model TEXT DEFAULT 'au
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notif_sound TEXT DEFAULT 'default';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notif_sound_custom TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'aluno';
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS turma_id UUID REFERENCES public.turmas(id) ON DELETE CASCADE;
+ALTER TABLE public.avisos ADD COLUMN IF NOT EXISTS link_url TEXT DEFAULT '';
 
 -- 1B. SESSÕES DE LOGIN (token guardado em cookie httpOnly)
 CREATE TABLE IF NOT EXISTS public.sessions (
