@@ -45,6 +45,20 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON public.sessions(token);
 
+-- 1C. RECUPERAÇÃO DE SENHA (token de uso único enviado por e-mail)
+CREATE TABLE IF NOT EXISTS public.password_resets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    -- Guardamos apenas o hash SHA-256: quem ler o banco não consegue usar o link.
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON public.password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON public.password_resets(user_id);
+
 -- 2. TAREFAS KANBAN
 CREATE TABLE IF NOT EXISTS public.tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -8,6 +8,9 @@ import {
     apiLogin,
     apiLogout,
     apiGetCurrentUser,
+    apiForgotPassword,
+    apiVerifyResetToken,
+    apiResetPassword,
     apiFetchTasks,
     apiCreateTask,
     apiUpdateTaskStatus,
@@ -212,6 +215,8 @@ let pomoCurrentMode = 'foco';
 // --- AUTENTICAÇÃO (LOGIN / REGISTO) ---
 let authMode = 'login';
 let authRole = 'aluno';
+let authPanel = 'login'; // 'login' | 'forgot' | 'reset'
+let resetToken = '';
 
 function setAuthRole(role) {
     authRole = role === 'professor' ? 'professor' : 'aluno';
@@ -227,11 +232,157 @@ function paintAuthRole() {
     if (profBtn) profBtn.className = `flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${authRole === 'professor' ? active : idle}`;
     const isLogin = authMode === 'login';
     const titleEl = document.getElementById('auth-title');
-    if (titleEl) {
+    if (titleEl && authPanel === 'login') {
         const quem = authRole === 'professor' ? 'Professor' : 'Aluno';
         titleEl.innerText = isLogin ? `Entrar como ${quem}` : `Criar conta de ${quem}`;
     }
+    const forgotLink = document.getElementById('auth-forgot-link');
+    if (forgotLink) forgotLink.classList.toggle('hidden', !isLogin);
     if (window.lucide) lucide.createIcons();
+}
+
+function setFeedback(id, message, type = 'error') {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerText = message;
+    el.className = type === 'ok'
+        ? 'text-xs font-semibold rounded-xl px-3.5 py-2.5 text-emerald-400 bg-emerald-950/40 border border-emerald-900/60'
+        : 'text-xs font-semibold rounded-xl px-3.5 py-2.5 text-rose-400 bg-rose-950/40 border border-rose-900/60';
+    el.classList.remove('hidden');
+}
+
+function hideFeedback(id) {
+    document.getElementById(id)?.classList.add('hidden');
+}
+
+function setAuthPanel(panel) {
+    authPanel = panel;
+    const isLoginPanel = panel === 'login';
+    document.getElementById('auth-fields')?.classList.toggle('hidden', !isLoginPanel);
+    document.getElementById('auth-submit-btn')?.classList.toggle('hidden', !isLoginPanel);
+    document.getElementById('auth-toggle-wrap')?.classList.toggle('hidden', !isLoginPanel);
+    document.getElementById('auth-tabs')?.classList.toggle('hidden', !isLoginPanel);
+    document.getElementById('auth-forgot-panel')?.classList.toggle('hidden', panel !== 'forgot');
+    document.getElementById('auth-reset-panel')?.classList.toggle('hidden', panel !== 'reset');
+
+    const titleEl = document.getElementById('auth-title');
+    const subtitleEl = document.getElementById('auth-subtitle');
+    if (isLoginPanel) {
+        if (subtitleEl) subtitleEl.innerText = 'Acesse seus estudos sincronizados';
+        paintAuthRole();
+    } else if (panel === 'forgot') {
+        if (titleEl) titleEl.innerText = 'Recuperar senha';
+        if (subtitleEl) subtitleEl.innerText = 'Enviaremos um link de redefinição para o seu e-mail';
+    } else {
+        if (titleEl) titleEl.innerText = 'Criar nova senha';
+        if (subtitleEl) subtitleEl.innerText = 'Defina uma nova senha de acesso';
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+function showForgotPassword() {
+    const email = document.getElementById('auth-email')?.value.trim() || '';
+    const input = document.getElementById('forgot-email');
+    if (input) input.value = email;
+    hideFeedback('forgot-feedback');
+    setAuthPanel('forgot');
+    setTimeout(() => input?.focus(), 50);
+}
+
+function showLoginPanel() {
+    resetToken = '';
+    // Remove o token da URL para não reaproveitar o link ao recarregar.
+    if (location.search.includes('reset_token=')) {
+        const url = new URL(location.href);
+        url.searchParams.delete('reset_token');
+        history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+    hideFeedback('forgot-feedback');
+    hideFeedback('reset-feedback');
+    const resetBtn = document.getElementById('reset-submit-btn');
+    if (resetBtn) resetBtn.disabled = false;
+    const err = document.getElementById('auth-error');
+    if (err) err.classList.add('hidden');
+    setAuthPanel('login');
+}
+
+async function openResetFromLink(token) {
+    resetToken = token;
+    const resetBtn = document.getElementById('reset-submit-btn');
+    if (resetBtn) resetBtn.disabled = false;
+    hideFeedback('reset-feedback');
+    setAuthPanel('reset');
+    try {
+        const { valid } = await apiVerifyResetToken(token);
+        if (!valid) {
+            setFeedback('reset-feedback', 'Este link é inválido ou já expirou. Solicite um novo link de recuperação.', 'error');
+            if (resetBtn) resetBtn.disabled = true;
+        }
+    } catch (e) {
+        // O POST de redefinição valida novamente; seguimos para a tela.
+    }
+}
+
+async function submitForgotPassword() {
+    const email = document.getElementById('forgot-email')?.value.trim();
+    hideFeedback('forgot-feedback');
+    if (!email) {
+        setFeedback('forgot-feedback', 'Informe o e-mail da sua conta.', 'error');
+        return;
+    }
+    const btn = document.getElementById('forgot-submit-btn');
+    const label = btn?.querySelector('span');
+    if (btn) btn.disabled = true;
+    if (label) label.innerText = 'Enviando...';
+    try {
+        const r = await apiForgotPassword(email);
+        setFeedback(
+            'forgot-feedback',
+            r?.message || 'Se este e-mail estiver cadastrado, enviaremos um link de recuperação em instantes.',
+            'ok'
+        );
+    } catch (e) {
+        setFeedback('forgot-feedback', e.message || 'Não foi possível enviar o e-mail agora.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+        if (label) label.innerText = 'Enviar link de recuperação';
+    }
+}
+
+async function submitResetPassword() {
+    const pass = document.getElementById('reset-password')?.value || '';
+    const confirm = document.getElementById('reset-password-confirm')?.value || '';
+    hideFeedback('reset-feedback');
+
+    if (pass.length < 6) {
+        setFeedback('reset-feedback', 'A nova senha precisa ter pelo menos 6 caracteres.', 'error');
+        return;
+    }
+    if (pass !== confirm) {
+        setFeedback('reset-feedback', 'As senhas não conferem. Digite novamente.', 'error');
+        return;
+    }
+    if (!resetToken) {
+        setFeedback('reset-feedback', 'Link inválido. Solicite um novo e-mail de recuperação.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('reset-submit-btn');
+    const label = btn?.querySelector('span');
+    if (btn) btn.disabled = true;
+    if (label) label.innerText = 'Salvando...';
+    try {
+        await apiResetPassword(resetToken, pass);
+        setFeedback('reset-feedback', 'Senha redefinida! Você já pode entrar com a nova senha.', 'ok');
+        document.getElementById('reset-password').value = '';
+        document.getElementById('reset-password-confirm').value = '';
+        showToast('Senha redefinida com sucesso!');
+        setTimeout(() => showLoginPanel(), 1800);
+    } catch (e) {
+        setFeedback('reset-feedback', e.message || 'Não foi possível redefinir a senha.', 'error');
+        if (btn) btn.disabled = false;
+        if (label) label.innerText = 'Redefinir senha';
+    }
 }
 
 async function boot() {
@@ -241,6 +392,15 @@ async function boot() {
     const yearElFooter = document.getElementById('footer-year');
     if (yearElFooter) yearElFooter.textContent = new Date().getFullYear();
     if (window.lucide) lucide.createIcons();
+
+    // Link de redefinição de senha vindo do e-mail.
+    const tokenFromUrl = new URLSearchParams(location.search).get('reset_token');
+    if (tokenFromUrl) {
+        showAuthScreen();
+        await openResetFromLink(tokenFromUrl);
+        return;
+    }
+
     try {
         const user = await apiGetCurrentUser();
         appState.user.name = user.full_name;
@@ -389,6 +549,7 @@ function showApp() {
 
 function setAuthMode(mode) {
     authMode = mode;
+    if (authPanel !== 'login') setAuthPanel('login');
     const isLogin = mode === 'login';
     const titleEl = document.getElementById('auth-title');
     if (titleEl) titleEl.innerText = isLogin ? 'Entrar na Plataforma' : 'Criar Conta';
@@ -2666,6 +2827,10 @@ function setHeaderDate() {
 
 // --- BIND DE FUNÇÕES AO WINDOW ---
 window.toggleAuthMode = toggleAuthMode;
+window.showForgotPassword = showForgotPassword;
+window.showLoginPanel = showLoginPanel;
+window.submitForgotPassword = submitForgotPassword;
+window.submitResetPassword = submitResetPassword;
 window.handleAvatarFile = handleAvatarFile;
 window.setAuthRole = setAuthRole;
 window.submitAuthForm = submitAuthForm;

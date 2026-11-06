@@ -67,6 +67,19 @@ export async function apiGetCurrentUser() {
     return request('/auth/me');
 }
 
+// === RECUPERAÇÃO DE SENHA POR E-MAIL ===
+export async function apiForgotPassword(email) {
+    return request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+}
+
+export async function apiVerifyResetToken(token) {
+    return request(`/auth/verify-reset?token=${encodeURIComponent(token)}`);
+}
+
+export async function apiResetPassword(token, password) {
+    return request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) });
+}
+
 // === TAREFAS (offline-first: cache + fila de sync) ===
 const SYNC_QUEUE_KEY = 'axis_sync_queue';
 
