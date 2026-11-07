@@ -29,6 +29,9 @@ importers:
       marked:
         specifier: ^18.0.9
         version: 18.0.10
+      qrcode-generator:
+        specifier: ^2.0.4
+        version: 2.0.4
       shiki:
         specifier: ^4.4.3
         version: 4.4.3
@@ -1876,6 +1879,9 @@ packages:
 
   property-information@7.2.0:
     resolution: {integrity: sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg==}
+
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
 
   reflect.getprototypeof@1.0.10:
     resolution: {integrity: sha512-00o4I+DVrefhv+nX0ulyi3biSHCPDe+yLv5o/p6d/UVlirijB8E16FtfwSAi4g3tcqrQ4lRAqQSoFEZJehYEcw==}
@@ -4185,6 +4191,8 @@ snapshots:
   pretty-bytes@6.1.1: {}
 
   property-information@7.2.0: {}
+
+  qrcode-generator@2.0.4: {}
 
   reflect.getprototypeof@1.0.10:
     dependencies:
