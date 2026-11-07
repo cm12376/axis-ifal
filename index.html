@@ -1404,6 +1404,9 @@
                                         </button>
                                     </div>
                                 </div>
+                                <p class="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 leading-snug">
+                                    As respostas da IA podem conter erros. O regulamento oficial do IFAL prevalece.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1511,6 +1514,8 @@
                                         <span class="text-xs">Código: <span id="prof-codigo" class="font-mono font-bold text-emerald-600">—</span></span>
                                         <span id="prof-convite-status" class="text-[10px] font-bold text-emerald-600"></span>
                                         <div class="flex gap-2 ml-auto">
+                                            <button onclick="openQrModal()" class="text-[10px] font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">📱 QR Code</button>
+                                            <button onclick="copyInviteLink()" class="text-[10px] font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">🔗 Copiar link</button>
                                             <button onclick="renewCodigoUI()" class="text-[10px] font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">🔄 Renovar</button>
                                             <button onclick="toggleConviteUI()" class="text-[10px] font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Ativar/Desativar</button>
                                         </div>
@@ -1598,6 +1603,35 @@
     </div>
 
     <!-- MODAIS DE REGISTRO -->
+
+    <!-- MODAL QR CODE DO CONVITE (projetar na sala) -->
+    <div id="modal-qr" class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4" onclick="if (event.target === this) closeQrModal()">
+        <div class="bg-white dark:bg-slate-950 rounded-2xl max-w-md w-full shadow-2xl p-6 relative border border-slate-200 dark:border-slate-800 text-center">
+            <button onclick="closeQrModal()" title="Fechar" class="absolute right-3 top-3 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <h3 class="text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-100">Entrar na turma</h3>
+            <p id="qr-turma-nome" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1"></p>
+
+            <div id="qr-code-box" class="mx-auto my-5 bg-white p-3 rounded-2xl w-fit border border-slate-200 shadow-sm"></div>
+
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Aponte a câmera do celular para o QR Code</p>
+
+            <div class="mt-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Código do convite</p>
+                <p id="qr-codigo" class="text-2xl font-black font-mono tracking-[0.3em] text-slate-800 dark:text-slate-100 mt-1"></p>
+            </div>
+
+            <p id="qr-link" class="text-[10px] text-slate-400 break-all mt-3"></p>
+
+            <div class="flex gap-2 mt-4">
+                <button onclick="copyInviteLink()" class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar link
+                </button>
+                <button onclick="closeQrModal()" class="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800">Fechar</button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL TAREFA -->
     <div id="modal-task" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">

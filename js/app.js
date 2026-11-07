@@ -69,6 +69,7 @@ import DOMPurify from 'dompurify';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { createHighlighter } from 'shiki';
+import qrcode from 'qrcode-generator';
 
 let highlighter = null;
 let highlighterReady = false;
@@ -393,6 +394,12 @@ async function boot() {
     if (yearElFooter) yearElFooter.textContent = new Date().getFullYear();
     if (window.lucide) lucide.createIcons();
 
+    // Convite direto (/entrar/CODIGO): guarda o código para preencher após o login.
+    const inviteFromPath = getInviteCodeFromPath();
+    if (inviteFromPath) {
+        try { sessionStorage.setItem('axis_pending_invite', inviteFromPath); } catch {}
+    }
+
     // Link de redefinição de senha vindo do e-mail.
     const tokenFromUrl = new URLSearchParams(location.search).get('reset_token');
     if (tokenFromUrl) {
@@ -406,6 +413,7 @@ async function boot() {
         appState.user.name = user.full_name;
         showApp();
         await initApp();
+        applyPendingInvite();
     } catch (e) {
         showAuthScreen();
     }
@@ -626,6 +634,7 @@ async function submitAuthForm() {
         appState.user.name = user.full_name;
         showApp();
         await initApp();
+        applyPendingInvite();
         showToast(`Bem-vindo(a), ${user.full_name}!`);
     } catch (e) {
         errorEl.innerText = e.message || 'Erro ao autenticar.';
@@ -1599,6 +1608,91 @@ async function toggleConviteUI() {
         renderProfessor();
         showToast(upd.convite_ativo ? 'Convite ativado!' : 'Convite desativado.');
     } catch (e) { showToast(e.message || 'Erro.'); }
+}
+
+// --- CONVITE POR LINK DIRETO / QR CODE ---
+function getInviteCodeFromPath() {
+    const m = location.pathname.match(/^\/entrar\/([A-Za-z0-9]+)\/?$/);
+    return m ? m[1].toUpperCase() : '';
+}
+
+function inviteUrl(codigo) {
+    return `${location.origin}/entrar/${encodeURIComponent(codigo)}`;
+}
+
+async function copyInviteLink() {
+    const codigo = profTurmaAtual()?.codigo_convite;
+    if (!codigo) { showToast('Nenhum código disponível.'); return; }
+    const url = inviteUrl(codigo);
+    try {
+        await navigator.clipboard.writeText(url);
+        showToast('Link de convite copiado!');
+    } catch {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); showToast('Link de convite copiado!'); }
+        catch { showToast(url); }
+        ta.remove();
+    }
+}
+
+function openQrModal() {
+    const t = profTurmaAtual();
+    if (!t) { showToast('Selecione uma turma.'); return; }
+    const codigo = t.codigo_convite || '';
+    if (!codigo) { showToast('Esta turma ainda não tem código de convite.'); return; }
+    const url = inviteUrl(codigo);
+
+    document.getElementById('qr-turma-nome').innerText = t.nome || 'Turma';
+    document.getElementById('qr-codigo').innerText = codigo;
+    document.getElementById('qr-link').innerText = url;
+
+    const box = document.getElementById('qr-code-box');
+    try {
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        box.innerHTML = qr.createSvgTag({ cellSize: 8, margin: 1 });
+        const svg = box.querySelector('svg');
+        if (svg) {
+            svg.style.width = '100%';
+            svg.style.height = 'auto';
+            svg.style.maxWidth = '240px';
+            svg.style.display = 'block';
+        }
+    } catch (e) {
+        box.innerHTML = '<p class="text-xs text-rose-500 p-4">Não foi possível gerar o QR Code.</p>';
+    }
+    document.getElementById('modal-qr').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
+
+function closeQrModal() {
+    document.getElementById('modal-qr').classList.add('hidden');
+}
+
+// Abre "Minhas Turmas" com o código já preenchido (vindo de /entrar/CODIGO).
+function applyPendingInvite() {
+    let codigo = '';
+    try { codigo = sessionStorage.getItem('axis_pending_invite') || ''; } catch {}
+    if (!codigo) return;
+    try { sessionStorage.removeItem('axis_pending_invite'); } catch {}
+    if (/^\/entrar\//.test(location.pathname)) {
+        history.replaceState({}, '', '/');
+    }
+    if (isProfessor()) {
+        showToast('O link de convite é para alunos entrarem na turma.');
+        return;
+    }
+    changeTab('turmas');
+    const input = document.getElementById('join-codigo');
+    if (input) {
+        input.value = codigo;
+        input.focus();
+    }
+    showToast(`Código ${codigo} preenchido. Clique em Entrar.`);
 }
 
 async function deleteTurmaUI() {
@@ -2853,6 +2947,9 @@ window.closeAddEventModal = closeAddEventModal;
 window.submitNewEvent = submitNewEvent;
 window.deleteEvent = deleteEvent;
 window.joinTurmaByCode = joinTurmaByCode;
+window.openQrModal = openQrModal;
+window.closeQrModal = closeQrModal;
+window.copyInviteLink = copyInviteLink;
 window.leaveTurma = leaveTurma;
 window.submitNovaTurma = submitNovaTurma;
 window.updateProfTurma = updateProfTurma;
