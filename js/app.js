@@ -1621,8 +1621,10 @@ function inviteUrl(codigo) {
 }
 
 async function copyInviteLink() {
-    const codigo = profTurmaAtual()?.codigo_convite;
+    const t = profTurmaAtual();
+    const codigo = t?.codigo_convite;
     if (!codigo) { showToast('Nenhum código disponível.'); return; }
+    if (t.convite_ativo === false) { showToast('Ative o convite antes de compartilhar o link.'); return; }
     const url = inviteUrl(codigo);
     try {
         await navigator.clipboard.writeText(url);
@@ -1643,6 +1645,7 @@ function openQrModal() {
     if (!t) { showToast('Selecione uma turma.'); return; }
     const codigo = t.codigo_convite || '';
     if (!codigo) { showToast('Esta turma ainda não tem código de convite.'); return; }
+    if (t.convite_ativo === false) { showToast('Ative o convite antes de compartilhar o QR Code.'); return; }
     const url = inviteUrl(codigo);
 
     document.getElementById('qr-turma-nome').innerText = t.nome || 'Turma';
